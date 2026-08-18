@@ -1,11 +1,13 @@
-import { Menu } from 'antd';
+import { Menu, Modal } from 'antd';
 import {
   DashboardOutlined,
   TeamOutlined,
   UserOutlined,
   ShoppingCartOutlined,
+  LogoutOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
 const menuItems = [
   {
@@ -33,8 +35,20 @@ const menuItems = [
 function Sidebar({ collapsed }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { logout } = useAuth();
 
   const handleMenuClick = ({ key }) => {
+    if (key === 'logout') {
+      Modal.confirm({
+        title: 'Sair do sistema',
+        content: 'Tem certeza que deseja sair?',
+        okText: 'Sair',
+        cancelText: 'Cancelar',
+        okButtonProps: { danger: true },
+        onOk: () => logout(),
+      });
+      return;
+    }
     navigate(key);
   };
 
@@ -59,6 +73,20 @@ function Sidebar({ collapsed }) {
         items={menuItems}
         onClick={handleMenuClick}
         style={{ flex: 1, borderRight: 0 }}
+      />
+      <Menu
+        mode="inline"
+        selectable={false}
+        onClick={handleMenuClick}
+        items={[
+          {
+            key: 'logout',
+            icon: <LogoutOutlined />,
+            label: 'Sair',
+            danger: true,
+          },
+        ]}
+        style={{ borderRight: 0 }}
       />
     </div>
   );
