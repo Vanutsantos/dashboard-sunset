@@ -1,6 +1,6 @@
-import { Typography, Table } from 'antd';
+import { Typography, Table, Button } from 'antd';
 import { Link } from 'react-router-dom';
-import { EyeOutlined } from '@ant-design/icons';
+import { EyeOutlined, PlusOutlined } from '@ant-design/icons';
 import useTeachers from '../../hooks/useTeachers';
 
 const { Title } = Typography;
@@ -31,13 +31,23 @@ function Teachers() {
 
   return (
     <div>
-      <Title level={4}>Professores</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Title level={4} style={{ margin: 0 }}>
+          Professores
+        </Title>
+        <Link to="/teachers/new">
+          <Button type="primary" icon={<PlusOutlined />}>
+            Novo Professor
+          </Button>
+        </Link>
+      </div>
       <Table
         dataSource={data || []}
         columns={columns}
         rowKey="id"
         loading={loading}
         pagination={false}
+        style={{ marginTop: 16 }}
       />
     </div>
   );

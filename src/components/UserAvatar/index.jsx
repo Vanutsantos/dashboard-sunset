@@ -1,32 +1,13 @@
 import { Avatar, Dropdown, Typography } from 'antd';
-import { UserOutlined, LogoutOutlined, SettingOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { UserOutlined, LogoutOutlined } from '@ant-design/icons';
+import { useAuth } from '../../contexts/AuthContext';
 
 const { Text } = Typography;
 
-const mockUser = {
-  name: 'João Silva',
-  email: 'joao@academia.com',
-  role: 'Admin',
-};
-
 function UserAvatar() {
-  const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const items = [
-    {
-      key: 'profile',
-      icon: <UserOutlined />,
-      label: 'Meu Perfil',
-    },
-    {
-      key: 'settings',
-      icon: <SettingOutlined />,
-      label: 'Configurações',
-    },
-    {
-      type: 'divider',
-    },
     {
       key: 'logout',
       icon: <LogoutOutlined />,
@@ -37,17 +18,22 @@ function UserAvatar() {
 
   const handleMenuClick = ({ key }) => {
     if (key === 'logout') {
-      navigate('/login');
+      logout();
     }
   };
 
   return (
-    <Dropdown menu={{ items, onClick: handleMenuClick }} placement="bottomRight" trigger={['click']}>
+    <Dropdown
+      menu={{ items, onClick: handleMenuClick }}
+      placement="bottomRight"
+      trigger={['click']}
+    >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
         <Avatar icon={<UserOutlined />} />
         <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.3 }}>
-          <Text strong style={{ fontSize: 14 }}>{mockUser.name}</Text>
-          <Text type="secondary" style={{ fontSize: 12 }}>{mockUser.role}</Text>
+          <Text strong style={{ fontSize: 14 }}>
+            {user?.displayName || user?.email}
+          </Text>
         </div>
       </div>
     </Dropdown>
