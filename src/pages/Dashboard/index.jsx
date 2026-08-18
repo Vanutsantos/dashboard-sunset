@@ -1,38 +1,17 @@
-import { Typography, Row, Col, Card, Statistic } from 'antd';
-import {
-  TeamOutlined,
-  UserOutlined,
-  ShoppingCartOutlined,
-  DollarOutlined,
-} from '@ant-design/icons';
+import { Typography } from 'antd';
+import { useAuth } from '../../contexts/AuthContext';
 
-const { Title } = Typography;
-
-const stats = [
-  { title: 'Clientes Ativos', value: 128, icon: <TeamOutlined />, color: '#1890ff' },
-  { title: 'Professores', value: 12, icon: <UserOutlined />, color: '#52c41a' },
-  { title: 'Vendas do Mês', value: 45, icon: <ShoppingCartOutlined />, color: '#faad14' },
-  { title: 'Receita Mensal', value: 'R$ 32.500', icon: <DollarOutlined />, color: '#722ed1' },
-];
+const { Title, Paragraph } = Typography;
 
 function Dashboard() {
+  const { user } = useAuth();
+
   return (
     <div>
-      <Title level={4}>Dashboard</Title>
-      <Row gutter={[16, 16]}>
-        {stats.map((stat) => (
-          <Col xs={24} sm={12} lg={6} key={stat.title}>
-            <Card>
-              <Statistic
-                title={stat.title}
-                value={stat.value}
-                prefix={stat.icon}
-                valueStyle={{ color: stat.color }}
-              />
-            </Card>
-          </Col>
-        ))}
-      </Row>
+      <Title level={3}>Bem-vindo ao Dashboard Sunset</Title>
+      <Paragraph type="secondary" style={{ fontSize: 16 }}>
+        Olá, {user?.displayName || user?.email}! Use o menu lateral para navegar entre as páginas.
+      </Paragraph>
     </div>
   );
 }
