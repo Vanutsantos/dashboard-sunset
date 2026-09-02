@@ -47,29 +47,82 @@ export function SyncProvider({ children }) {
   const [allClients, setAllClients] = useState(getCachedClients() || []);
   const location = useLocation();
 
+  const fetchAllContracts = async () => {
+    let contracts = [];
+    let skip = 0;
+    let hasNext = true;
+
+    while (hasNext) {
+      const response = await api.get('/ContratoCliente', {
+        params: { Skip: skip, Take: SYNC_PAGE_SIZE, Status: 'Ativo' },
+      });
+      const items = response.data?.items ?? [];
+      contracts = [...contracts, ...items];
+      hasNext = response.data?.temProximaPagina ?? false;
+      skip += SYNC_PAGE_SIZE;
+    }
+
+    // Filtra contratos com IDs únicos
+    contracts = contracts.filter(
+      (contract, index, self) =>
+        self.findIndex((c) => c.codigoCliente === contract.codigoCliente) === index,
+    );
+
+    return contracts;
+  };
+
+  const fetchAllClientsPessoa = async () => {
+    let clients = [];
+    let skip = 0;
+    let hasNext = true;
+
+    while (hasNext) {
+      const response = await api.get('/Pessoa/GetClientes', {
+        params: { Skip: skip, Take: SYNC_PAGE_SIZE, Inativo: false },
+      });
+      const items = response.data?.items ?? [];
+      clients = [...clients, ...items];
+      hasNext = response.data?.temProximaPagina ?? false;
+      skip += SYNC_PAGE_SIZE;
+    }
+
+    return clients;
+  };
+
   const fetchAllClients = async () => {
     if (isSyncingRef.current) return;
     isSyncingRef.current = true;
     setSyncing(true);
     try {
-      let clients = [];
-      let skip = 0;
-      let hasNext = true;
+      // 1. Busca todos os contratos ativos
+      const contracts = await fetchAllContracts();
+      console.log(contracts);
 
-      while (hasNext) {
-        const response = await api.get('/Pessoa/GetClientes', {
-          params: { Skip: skip, Take: SYNC_PAGE_SIZE, Inativo: false },
-        });
-        const items = response.data?.items ?? [];
-        clients = [...clients, ...items];
-        hasNext = response.data?.temProximaPagina ?? false;
-        skip += SYNC_PAGE_SIZE;
-      }
+      // 2. Busca todos os clientes não inativos
+      const clients = await fetchAllClientsPessoa();
 
-      clients.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
-      setCachedClients(clients);
-      setAllClients(clients);
-      message.success(`${clients.length} clientes sincronizados com sucesso!`);
+      // 3. Mapeia os contratos buscando os dados do cliente pelo codigoCliente
+      const clientsMap = clients.reduce((map, client) => {
+        map[client.id] = client;
+        return map;
+      }, {});
+
+      const mergedClients = contracts.map((contract) => ({
+        ...contract,
+        ...clientsMap[contract.codigoCliente],
+      }));
+
+      // Remove duplicatas por codigoCliente (mantém apenas o primeiro)
+      const uniqueClients = mergedClients.filter(
+        (item, index, self) =>
+          self.findIndex((c) => c.codigoCliente === item.codigoCliente) === index,
+      );
+
+      uniqueClients.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+
+      setCachedClients(uniqueClients);
+      setAllClients(uniqueClients);
+      message.success(`${uniqueClients.length} clientes sincronizados com sucesso!`);
     } catch (err) {
       message.error('Erro ao sincronizar: ' + (err.message || 'Erro desconhecido'));
     } finally {

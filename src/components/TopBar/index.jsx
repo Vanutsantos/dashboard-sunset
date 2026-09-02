@@ -1,8 +1,19 @@
-import { Button } from 'antd';
-import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
+import { Button, Tooltip, theme } from 'antd';
+import {
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  BulbOutlined,
+  BulbFilled,
+} from '@ant-design/icons';
+import { useTheme } from '../../contexts/ThemeContext';
 import UserAvatar from '../UserAvatar';
 
 function TopBar({ collapsed, onToggleCollapse }) {
+  const { isDark, toggleTheme } = useTheme();
+  const {
+    token: { colorBgContainer, colorBorderSecondary },
+  } = theme.useToken();
+
   return (
     <div
       style={{
@@ -11,8 +22,8 @@ function TopBar({ collapsed, onToggleCollapse }) {
         justifyContent: 'space-between',
         padding: '0 24px',
         height: 64,
-        background: '#fff',
-        borderBottom: '1px solid rgba(0,0,0,0.06)',
+        background: colorBgContainer,
+        borderBottom: `1px solid ${colorBorderSecondary}`,
       }}
     >
       <Button
@@ -21,7 +32,18 @@ function TopBar({ collapsed, onToggleCollapse }) {
         onClick={onToggleCollapse}
         style={{ fontSize: 16 }}
       />
-      <UserAvatar />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Tooltip title={isDark ? 'Tema claro' : 'Tema escuro'}>
+          <Button
+            type="text"
+            icon={isDark ? <BulbFilled /> : <BulbOutlined />}
+            onClick={toggleTheme}
+            style={{ fontSize: 16 }}
+            aria-label={isDark ? 'Ativar tema claro' : 'Ativar tema escuro'}
+          />
+        </Tooltip>
+        <UserAvatar />
+      </div>
     </div>
   );
 }

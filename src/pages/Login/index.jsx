@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Typography, Form, Input, Button, Card, message } from 'antd';
+import { Typography, Form, Input, Button, Card, message, theme } from 'antd';
 import { LockOutlined, MailOutlined } from '@ant-design/icons';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import '../../services/firebase';
 
 const { Title } = Typography;
@@ -11,12 +11,18 @@ const auth = getAuth();
 function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const {
+    token: { colorBgLayout },
+  } = theme.useToken();
+
+  const from = location.state?.from?.pathname || '/';
 
   const onFinish = async (values) => {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, values.email, values.password);
-      navigate('/', { replace: true });
+      navigate(from, { replace: true });
     } catch (err) {
       const messages = {
         'auth/invalid-credential': 'E-mail ou senha incorretos',
@@ -37,7 +43,7 @@ function Login() {
         justifyContent: 'center',
         alignItems: 'center',
         minHeight: '100vh',
-        background: '#f0f2f5',
+        background: colorBgLayout,
       }}
     >
       <Card style={{ width: 400, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>

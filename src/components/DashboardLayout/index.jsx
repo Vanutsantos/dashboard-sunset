@@ -1,13 +1,18 @@
-import { useState } from 'react';
-import { Layout } from 'antd';
+import { Layout, theme } from 'antd';
 import { Outlet } from 'react-router-dom';
+import { useTheme } from '../../contexts/ThemeContext';
+import useLocalStorage from '../../hooks/useLocalStorage';
 import Sidebar from '../Sidebar';
 import TopBar from '../TopBar';
 
 const { Sider, Content } = Layout;
 
 function DashboardLayout() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useLocalStorage('sidebar-collapsed', false);
+  const { isDark } = useTheme();
+  const {
+    token: { colorBgContainer, colorBorderSecondary },
+  } = theme.useToken();
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -15,7 +20,7 @@ function DashboardLayout() {
         trigger={null}
         collapsible
         collapsed={collapsed}
-        theme="light"
+        theme={isDark ? 'dark' : 'light'}
         width={240}
         style={{
           overflow: 'auto',
@@ -24,14 +29,22 @@ function DashboardLayout() {
           left: 0,
           top: 0,
           bottom: 0,
-          borderRight: '1px solid rgba(0,0,0,0.06)',
+          borderRight: `1px solid ${colorBorderSecondary}`,
         }}
       >
         <Sidebar collapsed={collapsed} />
       </Sider>
       <Layout style={{ marginLeft: collapsed ? 80 : 240, transition: 'margin-left 0.2s' }}>
-        <TopBar collapsed={collapsed} onToggleCollapse={() => setCollapsed(!collapsed)} />
-        <Content style={{ margin: 24, padding: 24, background: '#fff', borderRadius: 8, minHeight: 280 }}>
+        <TopBar collapsed={collapsed} onToggleCollapse={() => setCollapsed((c) => !c)} />
+        <Content
+          style={{
+            margin: 24,
+            padding: 24,
+            background: colorBgContainer,
+            borderRadius: 8,
+            minHeight: 280,
+          }}
+        >
           <Outlet />
         </Content>
       </Layout>

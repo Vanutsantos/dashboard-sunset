@@ -1,8 +1,10 @@
-import { useState, useMemo } from 'react';
-import { Typography, Table, Tag, Input, Button, Space } from 'antd';
+import { useState, useMemo, useCallback, useRef } from 'react';
+import { Typography, Table, Input, Button, Space } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { useSync } from '../../contexts/SyncContext';
 import useTeachers from '../../hooks/useTeachers';
+import { clientDetailPath } from '../../routes/paths';
 
 const { Title } = Typography;
 
@@ -13,6 +15,7 @@ function Clients() {
   const [search, setSearch] = useState('');
   const { syncing, allClients } = useSync();
   const { data: teachers } = useTeachers();
+  const navigate = useNavigate();
 
   // Mapa de id → nome do professor para lookup rápido
   const teacherMap = useMemo(() => {
@@ -24,7 +27,7 @@ function Clients() {
   }, [teachers]);
 
   const columns = [
-    { title: 'ID', dataIndex: 'id', key: 'id' },
+    { title: 'ID', dataIndex: 'codigoCliente', key: 'codigoCliente' },
     { title: 'Nome', dataIndex: 'nome', key: 'nome', render: (nome) => nome.toUpperCase() },
     { title: 'E-mail', dataIndex: 'email', key: 'email' },
     {
@@ -36,11 +39,8 @@ function Clients() {
     { title: 'Sexo', dataIndex: 'sexo', key: 'sexo', render: (sexo) => sexo ?? '-' },
     {
       title: 'Status',
-      dataIndex: 'inativo',
-      key: 'inativo',
-      render: (inativo) => (
-        <Tag color={!inativo ? 'green' : 'red'}>{inativo ? 'Inativo' : 'Ativo'}</Tag>
-      ),
+      dataIndex: 'status',
+      key: 'status',
     },
   ];
 
@@ -65,6 +65,16 @@ function Clients() {
     setPage(0);
   };
 
+  const debounceRef = useRef(null);
+
+  const handleSearchDebounced = useCallback((value) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setSearch(value);
+      setPage(0);
+    }, 400);
+  }, []);
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -76,7 +86,7 @@ function Clients() {
           allowClear
           prefix={<SearchOutlined />}
           onSearch={handleSearch}
-          onChange={(e) => handleSearch(e.target.value)}
+          onChange={(e) => handleSearchDebounced(e.target.value)}
           style={{ width: 300 }}
         />
       </div>
@@ -87,6 +97,10 @@ function Clients() {
         loading={syncing}
         pagination={false}
         style={{ marginTop: 16 }}
+        onRow={(record) => ({
+          onClick: () => navigate(clientDetailPath(record.id)),
+          style: { cursor: 'pointer' },
+        })}
       />
       <Space style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between' }}>
         <span>

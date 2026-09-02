@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { Typography, Table, Tag, Button, Space, DatePicker } from 'antd';
 import dayjs from 'dayjs';
 import api from '../../services/api';
+import { formatCurrency, formatDate } from '../../utils/format';
+import { statusColor } from '../../utils/sales';
 
 const { Title } = Typography;
 
@@ -15,24 +17,21 @@ const columns = [
     dataIndex: 'valorTotal',
     key: 'valorTotal',
     width: 120,
-    render: (val) => (val != null ? `R$ ${val.toFixed(2)}` : '-'),
+    render: (val) => formatCurrency(val),
   },
   {
     title: 'Data',
     dataIndex: 'data',
     key: 'data',
     width: 120,
-    render: (val) => (val ? dayjs(val).format('DD/MM/YYYY') : '-'),
+    render: (val) => formatDate(val),
   },
   {
     title: 'Status',
     dataIndex: 'status',
     key: 'status',
     width: 120,
-    render: (status) => {
-      const colors = { Concluida: 'green', Pendente: 'orange', Cancelada: 'red' };
-      return <Tag color={colors[status] || 'default'}>{status || '-'}</Tag>;
-    },
+    render: (status) => <Tag color={statusColor(status)}>{status || '-'}</Tag>,
   },
 ];
 
@@ -93,6 +92,7 @@ function Sales() {
           onChange={handleMonthChange}
           format="MMMM/YYYY"
           allowClear={false}
+          style={{ width: 150 }}
         />
       </div>
       <Table
