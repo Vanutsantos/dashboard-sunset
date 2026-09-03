@@ -82,7 +82,15 @@ function Sales() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
+          flexWrap: 'wrap',
+        }}
+      >
         <Title level={4} style={{ margin: 0 }}>
           Vendas
         </Title>
@@ -101,6 +109,7 @@ function Sales() {
         rowKey="id"
         loading={loading}
         pagination={false}
+        scroll={{ x: 'max-content' }}
         style={{ marginTop: 16 }}
       />
       <Space style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between' }}>

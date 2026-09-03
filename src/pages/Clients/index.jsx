@@ -77,7 +77,15 @@ function Clients() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
+          flexWrap: 'wrap',
+        }}
+      >
         <Title level={4} style={{ margin: 0 }}>
           Clientes
         </Title>
@@ -87,7 +95,7 @@ function Clients() {
           prefix={<SearchOutlined />}
           onSearch={handleSearch}
           onChange={(e) => handleSearchDebounced(e.target.value)}
-          style={{ width: 300 }}
+          style={{ width: '100%', maxWidth: 300 }}
         />
       </div>
       <Table
@@ -96,13 +104,23 @@ function Clients() {
         rowKey="id"
         loading={syncing}
         pagination={false}
+        scroll={{ x: 'max-content' }}
         style={{ marginTop: 16 }}
         onRow={(record) => ({
           onClick: () => navigate(clientDetailPath(record.id)),
           style: { cursor: 'pointer' },
         })}
       />
-      <Space style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div
+        style={{
+          marginTop: 16,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
+          flexWrap: 'wrap',
+        }}
+      >
         <span>
           Página {page + 1} de {totalPages || 1} ({filteredClients.length} registros)
         </span>
@@ -114,7 +132,7 @@ function Clients() {
             Próxima
           </Button>
         </Space>
-      </Space>
+      </div>
     </div>
   );
 }

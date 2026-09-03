@@ -9,6 +9,7 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { PATHS } from '../../routes/paths';
+import logo from '../../assets/logo.jpg';
 
 const menuItems = [
   {
@@ -42,7 +43,7 @@ const menuItems = [
   },
 ];
 
-function Sidebar({ collapsed }) {
+function Sidebar({ collapsed, onNavigate }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout } = useAuth();
@@ -63,6 +64,8 @@ function Sidebar({ collapsed }) {
       return;
     }
     navigate(key);
+    // Fecha o drawer no mobile após navegar.
+    onNavigate?.();
   };
 
   return (
@@ -73,12 +76,19 @@ function Sidebar({ collapsed }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          gap: 8,
+          padding: '0 12px',
           borderBottom: `1px solid ${colorBorderSecondary}`,
         }}
       >
-        <h2 style={{ margin: 0, fontSize: collapsed ? 16 : 18, whiteSpace: 'nowrap' }}>
-          {collapsed ? 'DS' : 'Dashboard Sunset'}
-        </h2>
+        <img
+          src={logo}
+          alt="Logo"
+          style={{ height: 36, aspectRatio: 1, objectFit: 'cover', borderRadius: '50%' }}
+        />
+        {!collapsed && (
+          <h2 style={{ margin: 0, fontSize: 18, whiteSpace: 'nowrap' }}>Dashboard Sunset</h2>
+        )}
       </div>
       <Menu
         mode="inline"

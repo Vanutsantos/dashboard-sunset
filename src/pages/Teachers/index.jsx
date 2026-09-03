@@ -47,19 +47,6 @@ function Teachers() {
     },
     { title: 'Nome', dataIndex: 'nome', key: 'nome' },
     {
-      title: 'Tipo de aula',
-      dataIndex: 'tipoAula',
-      key: 'tipoAula',
-      render: (tipoAula) => tipoAula || '-',
-    },
-    {
-      title: 'Repasse (%)',
-      dataIndex: 'porcentagem',
-      key: 'porcentagem',
-      align: 'center',
-      render: (porcentagem) => (porcentagem != null ? `${porcentagem}%` : '-'),
-    },
-    {
       title: 'Ações',
       fixed: 'end',
       align: 'center',
@@ -82,7 +69,15 @@ function Teachers() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
+          flexWrap: 'wrap',
+        }}
+      >
         <Title level={4} style={{ margin: 0 }}>
           Professores
         </Title>
@@ -98,6 +93,7 @@ function Teachers() {
         rowKey="id"
         loading={loading}
         pagination={false}
+        scroll={{ x: 'max-content' }}
         style={{ marginTop: 16 }}
       />
     </div>

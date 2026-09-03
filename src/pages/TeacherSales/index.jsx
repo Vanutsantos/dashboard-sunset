@@ -5,6 +5,7 @@ import {
   DatePicker,
   InputNumber,
   Row,
+  Segmented,
   Space,
   Statistic,
   Table,
@@ -22,17 +23,8 @@ import { EditOutlined, SaveOutlined } from '@ant-design/icons';
 import api from '../../services/api';
 import dayjs from 'dayjs';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 const PAGE_SIZE = 30;
-
-function getDateRange(date) {
-  const selected = dayjs(date);
-  // Sempre do primeiro ao último dia do mês, inclusive quando for o mês atual.
-  const start = selected.startOf('month').format('YYYY-MM-DD');
-  const end = selected.endOf('month').format('YYYY-MM-DD');
-
-  return { start, end };
-}
 
 /**
  * Calcula o valor de repasse a partir de um total e uma porcentagem.
@@ -62,6 +54,33 @@ function getPeriodDivisor(descricao) {
   return match ? match.months : 1;
 }
 
+const clientColumns = [
+  {
+    title: '#',
+    key: 'index',
+    width: 60,
+    align: 'center',
+    render: (_, __, index) => index + 1,
+  },
+  { title: 'ID', dataIndex: 'clientId', key: 'clientId', width: 100 },
+  { title: 'Nome', dataIndex: 'nome', key: 'nome' },
+  {
+    title: 'Qtd. Vendas',
+    dataIndex: 'totalVendas',
+    key: 'totalVendas',
+    width: 120,
+    align: 'center',
+  },
+  {
+    title: 'Total (R$)',
+    dataIndex: 'totalValor',
+    key: 'totalValor',
+    width: 130,
+    align: 'right',
+    render: (val) => (val != null ? `R$ ${val.toFixed(2)}` : '-'),
+  },
+];
+
 const salesColumns = [
   {
     title: '#',
@@ -70,8 +89,25 @@ const salesColumns = [
     align: 'center',
     render: (_, __, index) => index + 1,
   },
-  { title: 'ID Venda', dataIndex: 'id', key: 'id', width: 100 },
+  { title: 'ID Venda', dataIndex: 'id', key: 'id', width: 120 },
   { title: 'Descrição', dataIndex: 'descricao', key: 'descricao' },
+  {
+    title: 'Parcela',
+    dataIndex: 'parcela',
+    key: 'parcela',
+    width: 90,
+    align: 'center',
+    render: (val) => val || '-',
+  },
+  // {
+  //   title: 'Competência',
+  //   dataIndex: 'competencia',
+  //   key: 'competencia',
+  //   width: 120,
+  //   align: 'center',
+  //   render: (val, record) =>
+  //     val || (record.data ? dayjs(record.data).format('MM/YYYY') : '-'),
+  // },
   {
     title: 'Valor',
     dataIndex: 'valorTotal',
@@ -86,16 +122,16 @@ const salesColumns = [
     width: 120,
     render: (val) => (val ? dayjs(val).format('DD/MM/YYYY') : '-'),
   },
-  {
-    title: 'Status',
-    dataIndex: 'status',
-    key: 'status',
-    width: 120,
-    render: (status) => {
-      const colors = { Concluida: 'green', Pendente: 'orange', Cancelada: 'red' };
-      return <Tag color={colors[status] || 'default'}>{status || '-'}</Tag>;
-    },
-  },
+  // {
+  //   title: 'Status',
+  //   dataIndex: 'status',
+  //   key: 'status',
+  //   width: 120,
+  //   render: (status) => {
+  //     const colors = { Concluida: 'green', Pendente: 'orange', Cancelada: 'red' };
+  //     return <Tag color={colors[status] || 'default'}>{status || '-'}</Tag>;
+  //   },
+  // },
 ];
 
 function TeacherSales() {
@@ -105,20 +141,27 @@ function TeacherSales() {
   const { allClients } = useSync();
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(false);
+  // Filtro de mês aplicado apenas no front (a busca traz todas as vendas).
   const [selectedMonth, setSelectedMonth] = useState(dayjs());
+  // Filtro de exibição de alunos: por padrão só mostra os que têm venda.
+  const [onlyWithSales, setOnlyWithSales] = useState(true);
 
   const teacher = teachers.find((t) => String(t.id) === id);
 
-  // Edição inline da porcentagem de repasse do professor.
+  // Edição inline da porcentagem de repasse e do valor por aluno do professor.
   const [editingPercent, setEditingPercent] = useState(false);
   const [percentValue, setPercentValue] = useState(teacher?.porcentagem ?? null);
+  const [editingValorAluno, setEditingValorAluno] = useState(false);
+  const [valorAlunoValue, setValorAlunoValue] = useState(teacher?.valorPorAluno ?? null);
   // Rastreia o professor renderizado para reiniciar o estado ao trocar/carregar,
   // sem usar efeito (padrão de ajuste de estado durante o render do React).
   const [syncedTeacher, setSyncedTeacher] = useState(teacher);
   if (syncedTeacher !== teacher) {
     setSyncedTeacher(teacher);
     setPercentValue(teacher?.porcentagem ?? null);
+    setValorAlunoValue(teacher?.valorPorAluno ?? null);
     setEditingPercent(false);
+    setEditingValorAluno(false);
   }
 
   const handleSavePercent = async () => {
@@ -129,12 +172,33 @@ function TeacherSales() {
         nome: teacher.nome,
         tipoAula: teacher.tipoAula,
         porcentagem: percentValue,
+        // Preserva o valor por aluno atual (setDoc faz merge campo a campo).
+        valorPorAluno: valorAlunoValue,
       });
       message.success('Porcentagem atualizada com sucesso!');
       setEditingPercent(false);
       refetchTeachers();
     } catch (err) {
       message.error('Erro ao salvar porcentagem: ' + (err.message || 'Erro desconhecido'));
+    }
+  };
+
+  const handleSaveValorAluno = async () => {
+    if (!teacher) return;
+    try {
+      await saveTeacher({
+        id: teacher.id,
+        nome: teacher.nome,
+        tipoAula: teacher.tipoAula,
+        // Preserva a porcentagem atual.
+        porcentagem: percentValue,
+        valorPorAluno: valorAlunoValue,
+      });
+      message.success('Valor por aluno atualizado com sucesso!');
+      setEditingValorAluno(false);
+      refetchTeachers();
+    } catch (err) {
+      message.error('Erro ao salvar valor por aluno: ' + (err.message || 'Erro desconhecido'));
     }
   };
 
@@ -162,11 +226,11 @@ function TeacherSales() {
       }
       setLoading(true);
       try {
-        const { start, end } = getDateRange(selectedMonth);
         const salesItems = [];
 
-        // Busca (paginada) as vendas de um cliente em um intervalo de datas.
-        const fetchClientSales = async (client, dataInicio, dataFim) => {
+        // Busca (paginada) TODAS as vendas concluídas de um cliente, sem filtro
+        // de data.
+        const fetchClientSales = async (client) => {
           const result = [];
           let skip = 0;
           let hasNext = true;
@@ -177,8 +241,6 @@ function TeacherSales() {
                 Status: 'Concluida',
                 Skip: skip,
                 Take: PAGE_SIZE,
-                DataInicio: dataInicio,
-                DataFim: dataFim,
                 CodigoCliente: client.codigoCliente,
               },
             });
@@ -200,27 +262,7 @@ function TeacherSales() {
         };
 
         for (const client of teacherClients) {
-          let clientSales = await fetchClientSales(client, start, end);
-
-          // Se não houve venda no mês selecionado e o contrato é de mais de um
-          // mês (tipoDuracao 'Mes' e tempoDuracao > 1), refaz a busca a partir
-          // da data de início do contrato até um mês depois dela.
-          if (
-            clientSales.length === 0 &&
-            client.tipoDuracao === 'Mes' &&
-            client.tempoDuracao > 1 &&
-            client.dataInicio
-          ) {
-            const inicio = dayjs(client.dataInicio);
-            if (inicio.isValid()) {
-              clientSales = await fetchClientSales(
-                client,
-                inicio.format('YYYY-MM-DD'),
-                inicio.add(1, 'month').format('YYYY-MM-DD'),
-              );
-            }
-          }
-
+          const clientSales = await fetchClientSales(client);
           salesItems.push(...clientSales);
         }
 
@@ -241,13 +283,12 @@ function TeacherSales() {
     };
     // teacherClientsKey representa a identidade estável de teacherClients.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teacherClientsKey, selectedMonth]);
+  }, [teacherClientsKey]);
 
-  // Agrupa vendas por cliente e inclui alunos sem vendas
+  // Agrupa vendas por cliente. Planos de vários meses (trimestral, semestral,
+  // anual...) têm o valor dividido pela quantidade de meses e são replicados,
+  // gerando uma venda por mês (competência avançando a partir da data original).
   const groupedByClient = useMemo(() => {
-    // const filteredSales = sales.filter((sale) => (sale.descricao || '').includes('SEMANA'));
-    const filteredSales = sales.filter((sale) => !(sale.descricao || '').includes('SEMANsdsdsdsA'));
-
     const map = {};
 
     // Inicializa todos os alunos do professor (mesmo sem vendas)
@@ -259,40 +300,65 @@ function TeacherSales() {
       };
     });
 
-    filteredSales.forEach((sale) => {
-      // Se a descrição for "Wellhub - Beach Tennis" ou "Wellhub - Futevôlei", o valor é 20.90
-      // Se a descrição for "TotalPass - Beach Tennis", o valor é 23.90
-      const desc = (sale.descricao || '').trim();
-      let adjustedSale = sale;
-      if (desc === 'Wellhub - Beach Tennis') {
-        adjustedSale = { ...sale, valorTotal: 23 };
-      }else if (desc === 'Wellhub - Futevôlei') {
-        adjustedSale = { ...sale, valorTotal: 18 };
-      } else if (desc === 'TotalPass - Beach Tennis') {
-        adjustedSale = { ...sale, valorTotal: 20.17 };
-      }
+    // Só inclui a venda se a competência (mês/ano da data) for o mês filtrado.
+    const matchesMonth = (data) => {
+      // Sem mês selecionado: exibe todas as datas.
+      if (!selectedMonth) return true;
+      const d = dayjs(data);
+      return d.isValid() && d.isSame(selectedMonth, 'month');
+    };
 
-      // Vendas com periodicidade na descrição (Trimestral, Semestral, Anual...)
-      // têm o valor rateado pelo número de meses correspondente.
-      const divisor = getPeriodDivisor(desc);
-      if (divisor > 1 && adjustedSale.valorTotal != null) {
-        adjustedSale = {
-          ...adjustedSale,
-          valorTotal: adjustedSale.valorTotal / divisor,
-        };
-      }
-
-      if (!map[adjustedSale.clientId]) {
-        map[adjustedSale.clientId] = {
-          clientId: adjustedSale.clientId,
-          nome: adjustedSale.clientNome,
+    const pushSale = (sale) => {
+      if (!matchesMonth(sale.data)) return;
+      if (!map[sale.clientId]) {
+        map[sale.clientId] = {
+          clientId: sale.clientId,
+          nome: sale.clientNome,
           vendas: [],
         };
       }
-      map[adjustedSale.clientId].vendas.push(adjustedSale);
+      map[sale.clientId].vendas.push(sale);
+    };
+
+    sales.forEach((sale) => {
+      const desc = (sale.descricao || '').trim();
+
+      // Ajuste de valor por descrição para planos de parceria.
+      let baseValor = sale.valorTotal;
+      if (desc === 'Wellhub - Beach Tennis') {
+        baseValor = 23;
+      } else if (desc === 'Wellhub - Futevôlei') {
+        baseValor = 18;
+      } else if (desc === 'TotalPass - Beach Tennis') {
+        baseValor = 20.17;
+      }
+
+      const meses = getPeriodDivisor(desc);
+
+      if (meses > 1 && baseValor != null) {
+        // Rateia o valor e replica a venda para cada mês do plano.
+        // Insere da parcela mais recente para a mais antiga (ordem inversa).
+        const valorMes = baseValor / meses;
+        const dataBase = dayjs(sale.data);
+        for (let i = meses - 1; i >= 0; i -= 1) {
+          const dataMes = dataBase.isValid() ? dataBase.add(i, 'month') : null;
+          pushSale({
+            ...sale,
+            id: `${sale.id}-${i + 1}`,
+            valorTotal: valorMes,
+            data: dataMes ? dataMes.toISOString() : sale.data,
+            competencia: dataMes ? dataMes.format('MM/YYYY') : null,
+            parcela: `${i + 1}/${meses}`,
+          });
+        }
+      } else {
+        pushSale({ ...sale, valorTotal: baseValor });
+      }
     });
 
     return Object.values(map)
+      // Filtro "Com vendas": oculta alunos sem venda no mês. "Todos" mantém.
+      .filter((group) => (onlyWithSales ? group.vendas.length > 0 : true))
       .map((group) => {
         const totalValor = group.vendas.reduce((sum, v) => sum + (v.valorTotal || 0), 0);
         return {
@@ -303,49 +369,13 @@ function TeacherSales() {
         };
       })
       .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
-  }, [sales, teacherClients]);
-
-  const handleMonthChange = (date) => {
-    if (date) {
-      setSelectedMonth(date);
-    }
-  };
+  }, [sales, teacherClients, selectedMonth, onlyWithSales]);
 
   const totalAlunos = groupedByClient.length;
   const totalGeral = groupedByClient.reduce((sum, g) => sum + (g.totalValor || 0), 0);
   const totalRepasse = calcRepasse(totalGeral, percentValue);
-
-  // Colunas da tabela de alunos. Incluem o repasse calculado com a
-  // porcentagem atual do professor (recalcula ao editar a porcentagem).
-  const clientColumns = useMemo(
-    () => [
-      {
-        title: '#',
-        key: 'index',
-        width: 60,
-        align: 'center',
-        render: (_, __, index) => index + 1,
-      },
-      { title: 'ID', dataIndex: 'clientId', key: 'clientId', width: 100 },
-      { title: 'Nome', dataIndex: 'nome', key: 'nome' },
-      {
-        title: 'Qtd. Vendas',
-        dataIndex: 'totalVendas',
-        key: 'totalVendas',
-        width: 120,
-        align: 'center',
-      },
-      {
-        title: 'Total (R$)',
-        dataIndex: 'totalValor',
-        key: 'totalValor',
-        width: 130,
-        align: 'right',
-        render: (val) => (val != null ? `R$ ${val.toFixed(2)}` : '-'),
-      },
-    ],
-    [percentValue],
-  );
+  // Repasse (% sobre vendas) somado ao valor por aluno multiplicado pelo nº de alunos.
+  const totalRepasseComAluno = (totalRepasse ?? 0) + (valorAlunoValue ?? 0) * totalAlunos;
 
   return (
     <div>
@@ -361,77 +391,138 @@ function TeacherSales() {
         <Title level={4} style={{ margin: 0 }}>
           {teacher?.nome || 'Professor'}
         </Title>
-        <DatePicker
-          picker="month"
-          value={selectedMonth}
-          onChange={handleMonthChange}
-          format="MMMM/YYYY"
-          allowClear={false}
-          style={{ width: 150 }}
-        />
+        <Space align="center" size="small" wrap>
+          <Segmented
+            value={onlyWithSales ? 'comVendas' : 'todos'}
+            onChange={(val) => setOnlyWithSales(val === 'comVendas')}
+            options={[
+              { label: 'Com vendas', value: 'comVendas' },
+              { label: 'Todos', value: 'todos' },
+            ]}
+          />
+          <DatePicker
+            picker="month"
+            value={selectedMonth}
+            onChange={(date) => setSelectedMonth(date || null)}
+            format="MMMM/YYYY"
+            allowClear={false}
+            placeholder="Todas as datas"
+            disabledDate={(current) => current && current.isAfter(dayjs(), 'month')}
+            style={{ width: 170 }}
+          />
+        </Space>
       </div>
 
-      <Row gutter={16} style={{ marginTop: 16 }}>
-        <Col xs={12} sm={6}>
-          <Card size="small">
+      <Row gutter={[16, 16]} align="stretch" style={{ marginTop: 16 }}>
+        <Col xs={8} lg={4}>
+          <Card size="small" style={{ height: '100%' }}>
             <Statistic title="Alunos" value={totalAlunos} />
           </Card>
         </Col>
-        <Col xs={12} sm={6}>
-          <Card size="small">
+        <Col xs={16} sm={10} lg={6}>
+          <Card size="small" style={{ height: '100%' }}>
             <Statistic title="Total em vendas" value={totalGeral} precision={2} prefix="R$" />
           </Card>
         </Col>
-        <Col xs={12} sm={6}>
-          <Card size="small">
+        <Col xs={24} sm={10} lg={6}>
+          <Card size="small" style={{ height: '100%' }}>
             <Statistic
-              title="Repasse"
-              value={totalRepasse != null ? totalRepasse : 0}
+              title="Repasse + Valor por Aluno"
+              value={totalRepasseComAluno}
               precision={2}
               prefix="R$"
             />
           </Card>
         </Col>
-        <Col xs={12} sm={6}>
-          <Card size="small">
-            <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 14, marginBottom: 4 }}>
-              Repasse (%)
-            </div>
-            <Space align="center" size="small">
-              <InputNumber
-                value={percentValue}
-                onChange={setPercentValue}
-                disabled={!editingPercent || !teacher}
-                min={0}
-                max={100}
-                precision={0}
-                suffix="%"
-                placeholder="—"
-                style={{ width: 100 }}
-                parser={(value) => {
-                  const digits = (value || '').replace(/\D/g, '');
-                  if (digits === '') return '';
-                  return Math.min(100, Number(digits));
-                }}
-              />
-              {editingPercent ? (
-                <Tooltip title="Salvar">
-                  <Button
-                    type="primary"
-                    icon={<SaveOutlined />}
-                    loading={saving}
-                    onClick={handleSavePercent}
+        <Col xs={24} sm={24} lg={8}>
+          <Card size="small" style={{ height: '100%' }}>
+            <Space size="medium" align="start">
+              <div style={{with:"50%"}}>
+                <Text
+                  type="secondary"
+                  style={{ display: 'block', fontSize: 14, marginBottom: 4 }}
+                >
+                  Repasse (%)
+                </Text>
+                <Space align="center" size="small">
+                  <InputNumber
+                    value={percentValue}
+                    onChange={setPercentValue}
+                    disabled={!editingPercent || !teacher}
+                    controls={false}
+                    min={0}
+                    max={100}
+                    precision={0}
+                    suffix="%"
+                    placeholder="—"
+                    style={{ width: 80 }}
+                    parser={(value) => {
+                      const digits = (value || '').replace(/\D/g, '');
+                      if (digits === '') return '';
+                      return Math.min(100, Number(digits));
+                    }}
                   />
-                </Tooltip>
-              ) : (
-                <Tooltip title="Editar porcentagem">
-                  <Button
-                    icon={<EditOutlined />}
-                    disabled={!teacher}
-                    onClick={() => setEditingPercent(true)}
+                  {editingPercent ? (
+                    <Tooltip title="Salvar">
+                      <Button
+                        type="primary"
+                        icon={<SaveOutlined />}
+                        loading={saving}
+                        onClick={handleSavePercent}
+                      />
+                    </Tooltip>
+                  ) : (
+                    <Tooltip title="Editar porcentagem">
+                      <Button
+                        icon={<EditOutlined />}
+                        disabled={!teacher}
+                        onClick={() => setEditingPercent(true)}
+                      />
+                    </Tooltip>
+                  )}
+                </Space>
+              </div>
+
+              <div style={{with:"50%"}}>
+                <Text
+                  type="secondary"
+                  style={{ display: 'block', fontSize: 14, marginBottom: 4 }}
+                >
+                  Valor por aluno
+                </Text>
+                <Space align="center" size="small">
+                  <InputNumber
+                    value={valorAlunoValue}
+                    onChange={setValorAlunoValue}
+                    disabled={!editingValorAluno || !teacher}
+                    controls={false}
+                    min={0}
+                    precision={2}
+                    decimalSeparator=","
+                    prefix="R$"
+                    placeholder="—"
+                    style={{ width: 100 }}
                   />
-                </Tooltip>
-              )}
+                  {editingValorAluno ? (
+                    <Tooltip title="Salvar">
+                      <Button
+                        type="primary"
+                        icon={<SaveOutlined />}
+                        loading={saving}
+                        onClick={handleSaveValorAluno}
+                      />
+                    </Tooltip>
+                  ) : (
+                    <Tooltip title="Editar valor por aluno">
+                      <Button
+                        icon={<EditOutlined />}
+                        disabled={!teacher}
+                        onClick={() => setEditingValorAluno(true)}
+                      />
+                    </Tooltip>
+                  )}
+                </Space>
+              </div>
             </Space>
           </Card>
         </Col>
@@ -443,6 +534,7 @@ function TeacherSales() {
         rowKey="clientId"
         loading={loading}
         pagination={false}
+        scroll={{ x: 'max-content' }}
         style={{ marginTop: 16 }}
         expandable={{
           expandedRowRender: (record) => (
@@ -452,6 +544,7 @@ function TeacherSales() {
               rowKey="id"
               pagination={false}
               size="small"
+              scroll={{ x: 'max-content' }}
             />
           ),
         }}

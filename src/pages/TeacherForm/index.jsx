@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Typography, Form, Input, Button, message, Spin, Select, InputNumber } from 'antd';
+import { Typography, Form, Input, Button, message, Spin, InputNumber } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
 import useTeacherMutations from '../../hooks/useTeacherMutations';
-import { CLASS_TYPE_OPTIONS } from '../../constants/classTypes';
 import { PATHS } from '../../routes/paths';
 
 const { Title } = Typography;
@@ -31,8 +30,8 @@ function TeacherForm() {
         form.setFieldsValue({
           id: teacher.id,
           nome: teacher.nome,
-          tipoAula: teacher.tipoAula ?? undefined,
           porcentagem: teacher.porcentagem ?? undefined,
+          valorPorAluno: teacher.valorPorAluno ?? undefined,
         });
       } catch (err) {
         message.error('Erro ao carregar professor: ' + (err.message || 'Erro desconhecido'));
@@ -55,8 +54,8 @@ function TeacherForm() {
       await saveTeacher({
         id: values.id,
         nome: values.nome,
-        tipoAula: values.tipoAula,
         porcentagem: values.porcentagem,
+        valorPorAluno: values.valorPorAluno,
       });
       message.success(
         isEdit ? 'Professor atualizado com sucesso!' : 'Professor cadastrado com sucesso!',
@@ -96,18 +95,6 @@ function TeacherForm() {
         </Form.Item>
 
         <Form.Item
-          label="Tipo de aula"
-          name="tipoAula"
-          rules={[{ required: true, message: 'Selecione o tipo de aula' }]}
-        >
-          <Select
-            placeholder="Selecione o tipo de aula"
-            options={CLASS_TYPE_OPTIONS}
-            allowClear
-          />
-        </Form.Item>
-
-        <Form.Item
           label="Porcentagem"
           name="porcentagem"
           rules={[{ required: true, message: 'Informe a porcentagem' }]}
@@ -125,6 +112,17 @@ function TeacherForm() {
               if (digits === '') return '';
               return Math.min(100, Number(digits));
             }}
+          />
+        </Form.Item>
+
+        <Form.Item label="Valor por aluno" name="valorPorAluno">
+          <InputNumber
+            placeholder="Ex: 30,00"
+            min={0}
+            precision={2}
+            decimalSeparator=","
+            prefix="R$"
+            style={{ width: '100%' }}
           />
         </Form.Item>
 

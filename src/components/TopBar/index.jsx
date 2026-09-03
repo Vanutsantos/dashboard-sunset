@@ -6,13 +6,24 @@ import {
   BulbFilled,
 } from '@ant-design/icons';
 import { useTheme } from '../../contexts/ThemeContext';
+import useIsMobile from '../../hooks/useIsMobile';
 import UserAvatar from '../UserAvatar';
 
 function TopBar({ collapsed, onToggleCollapse }) {
   const { isDark, toggleTheme } = useTheme();
+  const isMobile = useIsMobile();
   const {
     token: { colorBgContainer, colorBorderSecondary },
   } = theme.useToken();
+
+  // No mobile o ícone é sempre o de "abrir menu" (a sidebar é um drawer).
+  const menuIcon = isMobile ? (
+    <MenuUnfoldOutlined />
+  ) : collapsed ? (
+    <MenuUnfoldOutlined />
+  ) : (
+    <MenuFoldOutlined />
+  );
 
   return (
     <div
@@ -20,7 +31,7 @@ function TopBar({ collapsed, onToggleCollapse }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 24px',
+        padding: isMobile ? '0 12px' : '0 24px',
         height: 64,
         background: colorBgContainer,
         borderBottom: `1px solid ${colorBorderSecondary}`,
@@ -28,9 +39,10 @@ function TopBar({ collapsed, onToggleCollapse }) {
     >
       <Button
         type="text"
-        icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+        icon={menuIcon}
         onClick={onToggleCollapse}
         style={{ fontSize: 16 }}
+        aria-label="Alternar menu"
       />
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <Tooltip title={isDark ? 'Tema claro' : 'Tema escuro'}>
@@ -42,7 +54,7 @@ function TopBar({ collapsed, onToggleCollapse }) {
             aria-label={isDark ? 'Ativar tema claro' : 'Ativar tema escuro'}
           />
         </Tooltip>
-        <UserAvatar />
+        <UserAvatar compact={isMobile} />
       </div>
     </div>
   );

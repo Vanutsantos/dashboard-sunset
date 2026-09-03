@@ -12,9 +12,8 @@ function getInitialMode() {
     return stored;
   }
 
-  const prefersDark =
-    window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  return prefersDark ? 'dark' : 'light';
+  // Sem preferência salva, o tema padrão é claro.
+  return 'light';
 }
 
 export function ThemeProvider({ children }) {

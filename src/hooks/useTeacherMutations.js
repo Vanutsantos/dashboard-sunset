@@ -22,15 +22,22 @@ function useTeacherMutations() {
     return snapshot.exists();
   }, []);
 
-  const saveTeacher = useCallback(async ({ id, nome, tipoAula, porcentagem }) => {
+  const saveTeacher = useCallback(async ({ id, nome, tipoAula, porcentagem, valorPorAluno }) => {
     setSaving(true);
     try {
-      await setDoc(doc(db, COLLECTION, String(id)), {
+      const data = {
         id: String(id),
         nome,
-        tipoAula: tipoAula ?? null,
         porcentagem: porcentagem ?? null,
-      });
+        valorPorAluno: valorPorAluno ?? null,
+      };
+      // Só grava tipoAula quando informado, para não apagar o valor existente
+      // (o formulário não usa mais esse campo, mas outros fluxos podem enviá-lo).
+      if (tipoAula !== undefined) {
+        data.tipoAula = tipoAula ?? null;
+      }
+      // merge evita remover campos do documento que não foram enviados aqui.
+      await setDoc(doc(db, COLLECTION, String(id)), data, { merge: true });
     } finally {
       setSaving(false);
     }

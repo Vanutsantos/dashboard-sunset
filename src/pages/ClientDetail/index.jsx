@@ -174,6 +174,7 @@ function ClientDetail() {
         loading={loadingSales}
         pagination={{ pageSize: 10, hideOnSinglePage: true }}
         size="small"
+        scroll={{ x: 'max-content' }}
       />
     </div>
   );
