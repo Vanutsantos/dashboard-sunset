@@ -1,0 +1,27 @@
+/**
+ * Ancora o indicador de loading das tabelas do Antd próximo ao topo.
+ *
+ * Por padrão o Antd posiciona a seção do spinner (.ant-spin-section) de forma
+ * absoluta, centralizada na altura total da tabela (top: 50% + translate).
+ * Em tabelas altas esse centro fica abaixo da viewport e o indicador some.
+ *
+ * Aqui trocamos por "sticky", ancorado a 200px do topo da área visível da
+ * tabela, para que o spinner acompanhe a rolagem e fique sempre visível.
+ * A seção fica com altura zero (height: 0) para não empurrar a tabela para
+ * baixo, e o próprio spinner é centralizado horizontalmente.
+ *
+ * O !important sobrescreve o estilo do Antd, injetado em runtime via CSS-in-JS
+ * (ordem de cascata imprevisível em relação a este arquivo).
+ *
+ * Estrutura no Antd v6 (confirmada em runtime):
+ *   .ant-table-wrapper > .ant-spin > .ant-spin-section (indicador)
+ *                                  > .ant-spin-container (a tabela)
+ */
+.ant-table-wrapper > .ant-spin > .ant-spin-section {
+  position: sticky !important;
+  top: 200px !important;
+  inset-inline: 0 !important;
+  height: 0 !important;
+  overflow: visible !important;
+  transform: none !important;
+}

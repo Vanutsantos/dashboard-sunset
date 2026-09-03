@@ -1,4 +1,4 @@
-import { Menu, Modal } from 'antd';
+import { Menu, Modal, theme } from 'antd';
 import {
   DashboardOutlined,
   TeamOutlined,
@@ -8,34 +8,48 @@ import {
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { PATHS } from '../../routes/paths';
+import logo from '../../assets/logo.jpg';
 
 const menuItems = [
   {
-    key: '/',
+    key: PATHS.home,
     icon: <DashboardOutlined />,
     label: 'Dashboard',
   },
   {
-    key: '/clients',
+    key: PATHS.clients,
     icon: <TeamOutlined />,
     label: 'Clientes',
   },
   {
-    key: '/teachers',
+    key: PATHS.teachers,
     icon: <UserOutlined />,
     label: 'Professores',
   },
   {
-    key: '/sales',
+    key: PATHS.sales,
     icon: <ShoppingCartOutlined />,
     label: 'Vendas',
   },
+  {
+    type: 'divider',
+  },
+  {
+    key: 'logout',
+    icon: <LogoutOutlined />,
+    label: 'Sair',
+    danger: true,
+  },
 ];
 
-function Sidebar({ collapsed }) {
+function Sidebar({ collapsed, onNavigate }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout } = useAuth();
+  const {
+    token: { colorBorderSecondary },
+  } = theme.useToken();
 
   const handleMenuClick = ({ key }) => {
     if (key === 'logout') {
@@ -50,6 +64,8 @@ function Sidebar({ collapsed }) {
       return;
     }
     navigate(key);
+    // Fecha o drawer no mobile após navegar.
+    onNavigate?.();
   };
 
   return (
@@ -60,12 +76,19 @@ function Sidebar({ collapsed }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          borderBottom: '1px solid rgba(0,0,0,0.06)',
+          gap: 8,
+          padding: '0 12px',
+          borderBottom: `1px solid ${colorBorderSecondary}`,
         }}
       >
-        <h2 style={{ margin: 0, fontSize: collapsed ? 16 : 18, whiteSpace: 'nowrap' }}>
-          {collapsed ? 'DS' : 'Dashboard Sunset'}
-        </h2>
+        <img
+          src={logo}
+          alt="Logo"
+          style={{ height: 36, aspectRatio: 1, objectFit: 'cover', borderRadius: '50%' }}
+        />
+        {!collapsed && (
+          <h2 style={{ margin: 0, fontSize: 18, whiteSpace: 'nowrap' }}>Dashboard Sunset</h2>
+        )}
       </div>
       <Menu
         mode="inline"
@@ -73,20 +96,6 @@ function Sidebar({ collapsed }) {
         items={menuItems}
         onClick={handleMenuClick}
         style={{ flex: 1, borderRight: 0 }}
-      />
-      <Menu
-        mode="inline"
-        selectable={false}
-        onClick={handleMenuClick}
-        items={[
-          {
-            key: 'logout',
-            icon: <LogoutOutlined />,
-            label: 'Sair',
-            danger: true,
-          },
-        ]}
-        style={{ borderRight: 0 }}
       />
     </div>
   );

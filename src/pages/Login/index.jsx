@@ -1,21 +1,28 @@
 import { useState } from 'react';
-import { Typography, Form, Input, Button, Card, message } from 'antd';
-import { LockOutlined, MailOutlined } from '@ant-design/icons';
+import { Form, Input, Button, Card, Tooltip, message, theme } from 'antd';
+import { LockOutlined, MailOutlined, BulbOutlined, BulbFilled } from '@ant-design/icons';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from '../../contexts/ThemeContext';
 import '../../services/firebase';
+import logo from '../../assets/logo.jpg';
 
-const { Title } = Typography;
 const auth = getAuth();
 
 function Login() {
   const [loading, setLoading] = useState(false);
+  const [form] = Form.useForm();
   const navigate = useNavigate();
+  const { isDark, toggleTheme } = useTheme();
+  const {
+    token: { colorBgLayout },
+  } = theme.useToken();
 
   const onFinish = async (values) => {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, values.email, values.password);
+      // Após login, vai sempre para a página inicial (dashboard).
       navigate('/', { replace: true });
     } catch (err) {
       const messages = {
@@ -33,18 +40,33 @@ function Login() {
   return (
     <div
       style={{
+        position: 'relative',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
         minHeight: '100vh',
-        background: '#f0f2f5',
+        padding: 16,
+        background: colorBgLayout,
       }}
     >
-      <Card style={{ width: 400, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-        <Title level={3} style={{ textAlign: 'center', marginBottom: 32 }}>
-          Login
-        </Title>
-        <Form name="login" layout="vertical" onFinish={onFinish} autoComplete="off">
+      <Tooltip title={isDark ? 'Tema claro' : 'Tema escuro'}>
+        <Button
+          type="text"
+          icon={isDark ? <BulbFilled /> : <BulbOutlined />}
+          onClick={toggleTheme}
+          aria-label={isDark ? 'Ativar tema claro' : 'Ativar tema escuro'}
+          style={{ position: 'absolute', top: 16, right: 16, fontSize: 18 }}
+        />
+      </Tooltip>
+      <Card style={{ width: 400, maxWidth: '100%', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+          <img
+            src={logo}
+            alt="Logo"
+            style={{ height: 100, aspectRatio: 1, objectFit: 'cover', borderRadius: '50%' }}
+          />
+        </div>
+        <Form form={form} name="login" layout="vertical" onFinish={onFinish} autoComplete="off">
           <Form.Item
             label="E-mail"
             name="email"
@@ -53,7 +75,12 @@ function Login() {
               { type: 'email', message: 'E-mail inválido' },
             ]}
           >
-            <Input prefix={<MailOutlined />} placeholder="seu@email.com" size="large" />
+            <Input
+              prefix={<MailOutlined />}
+              placeholder="seu@email.com"
+              size="large"
+              onPressEnter={() => form.submit()}
+            />
           </Form.Item>
 
           <Form.Item
@@ -61,7 +88,12 @@ function Login() {
             name="password"
             rules={[{ required: true, message: 'Informe sua senha' }]}
           >
-            <Input.Password prefix={<LockOutlined />} placeholder="Sua senha" size="large" />
+            <Input.Password
+              prefix={<LockOutlined />}
+              placeholder="Sua senha"
+              size="large"
+              onPressEnter={() => form.submit()}
+            />
           </Form.Item>
 
           <Form.Item>
