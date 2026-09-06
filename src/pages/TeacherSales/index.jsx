@@ -9,7 +9,6 @@ import {
   Space,
   Statistic,
   Table,
-  Tag,
   Tooltip,
   Typography,
   message,
@@ -217,6 +216,8 @@ function TeacherSales() {
 
   useEffect(() => {
     let active = true;
+    // Cancela as requisições em andamento ao sair da página / trocar de professor.
+    const controller = new AbortController();
 
     const fetchSales = async () => {
       // Sem clientes, não há o que buscar: zera as vendas e encerra.
@@ -237,6 +238,7 @@ function TeacherSales() {
 
           while (hasNext) {
             const response = await api.get('/Venda', {
+              signal: controller.signal,
               params: {
                 Status: 'Concluida',
                 Skip: skip,
@@ -269,6 +271,8 @@ function TeacherSales() {
         // Ignora o resultado se as dependências mudaram durante a busca.
         if (active) setSales(salesItems);
       } catch (err) {
+        // Requisição cancelada (saída da página): silencioso, sem mexer no estado.
+        if (controller.signal.aborted) return;
         console.error('Erro ao buscar vendas: ' + (err.message || 'Erro desconhecido'));
         if (active) setSales([]);
       } finally {
@@ -280,6 +284,8 @@ function TeacherSales() {
 
     return () => {
       active = false;
+      // Aborta qualquer requisição pendente.
+      controller.abort();
     };
     // teacherClientsKey representa a identidade estável de teacherClients.
     // eslint-disable-next-line react-hooks/exhaustive-deps

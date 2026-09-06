@@ -5,6 +5,7 @@ import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import '../../services/firebase';
+import { recordLogin } from '../../services/loginLog';
 import logo from '../../assets/logo.jpg';
 
 const auth = getAuth();
@@ -21,7 +22,9 @@ function Login() {
   const onFinish = async (values) => {
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
+      const credential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      // Registra o login (data, IP e metadados) no Firestore. Best-effort.
+      await recordLogin(credential.user);
       // Após login, vai sempre para a página inicial (dashboard).
       navigate('/', { replace: true });
     } catch (err) {

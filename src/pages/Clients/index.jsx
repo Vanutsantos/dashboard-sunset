@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useRef } from 'react';
-import { Typography, Table, Input, Button, Space } from 'antd';
+import { Typography, Table, Input, Button, Space, Select } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useSync } from '../../contexts/SyncContext';
@@ -13,6 +13,7 @@ const PAGE_SIZE = 20;
 function Clients() {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState(null);
   const { syncing, allClients } = useSync();
   const { data: teachers } = useTeachers();
   const navigate = useNavigate();
@@ -28,7 +29,7 @@ function Clients() {
 
   const columns = [
     { title: 'ID', dataIndex: 'codigoCliente', key: 'codigoCliente' },
-    { title: 'Nome', dataIndex: 'nome', key: 'nome', render: (nome) => nome.toUpperCase() },
+    { title: 'Nome', dataIndex: 'nome', key: 'nome', render: (nome) => nome?.toUpperCase() },
     { title: 'E-mail', dataIndex: 'email', key: 'email' },
     {
       title: 'Professor',
@@ -44,18 +45,34 @@ function Clients() {
     },
   ];
 
+  // Opções do filtro: status distintos presentes na listagem, ordenados.
+  const statusOptions = useMemo(() => {
+    const set = new Set();
+    allClients.forEach((c) => {
+      if (c.status) set.add(c.status);
+    });
+    return Array.from(set)
+      .sort((a, b) => a.localeCompare(b))
+      .map((status) => ({ label: status, value: status }));
+  }, [allClients]);
+
   const filteredClients = useMemo(() => {
-    if (!search.trim()) return allClients;
     const normalize = (str) =>
       (str || '')
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase();
     const term = normalize(search);
-    return allClients.filter(
-      (c) => normalize(c.nome).includes(term) || String(c.id).includes(search.trim()),
-    );
-  }, [allClients, search]);
+
+    return allClients.filter((c) => {
+      const matchesStatus = !statusFilter || c.status === statusFilter;
+      const matchesSearch =
+        !term ||
+        normalize(c.nome).includes(term) ||
+        String(c.id).includes(search.trim());
+      return matchesStatus && matchesSearch;
+    });
+  }, [allClients, search, statusFilter]);
 
   const totalPages = Math.ceil(filteredClients.length / PAGE_SIZE);
   const paginatedData = filteredClients.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -89,14 +106,27 @@ function Clients() {
         <Title level={4} style={{ margin: 0 }}>
           Clientes
         </Title>
-        <Input.Search
-          placeholder="Buscar por nome ou ID"
-          allowClear
-          prefix={<SearchOutlined />}
-          onSearch={handleSearch}
-          onChange={(e) => handleSearchDebounced(e.target.value)}
-          style={{ width: '100%', maxWidth: 300 }}
-        />
+        <Space size="small" wrap>
+          <Select
+            placeholder="Status"
+            allowClear
+            value={statusFilter}
+            onChange={(value) => {
+              setStatusFilter(value ?? null);
+              setPage(0);
+            }}
+            options={statusOptions}
+            style={{ minWidth: 160 }}
+          />
+          <Input.Search
+            placeholder="Buscar por nome ou ID"
+            allowClear
+            prefix={<SearchOutlined />}
+            onSearch={handleSearch}
+            onChange={(e) => handleSearchDebounced(e.target.value)}
+            style={{ width: '100%', maxWidth: 300 }}
+          />
+        </Space>
       </div>
       <Table
         dataSource={paginatedData}
