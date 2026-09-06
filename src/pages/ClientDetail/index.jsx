@@ -136,7 +136,7 @@ function ClientDetail() {
       </Button>
 
       <Title level={4} style={{ marginTop: 8 }}>
-        {(client.nome || '').toUpperCase()}
+        {(client.nome || '')?.toUpperCase()}
       </Title>
 
       <Descriptions bordered column={{ xs: 1, sm: 2 }} size="small" style={{ marginTop: 8 }}>

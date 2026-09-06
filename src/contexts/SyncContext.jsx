@@ -6,6 +6,7 @@ import api from '../services/api';
 
 const SyncContext = createContext(null);
 
+// Limite fixo da API: 30 itens por página.
 const SYNC_PAGE_SIZE = 30;
 const COOKIE_NAME = 'allClients_synced';
 const COOKIE_EXPIRY_MINUTES = 600;
@@ -47,46 +48,37 @@ export function SyncProvider({ children }) {
   const [allClients, setAllClients] = useState(getCachedClients() || []);
   const location = useLocation();
 
-  const fetchAllContracts = async () => {
-    let contracts = [];
+  // Busca uma página específica de um endpoint (Take fixo = SYNC_PAGE_SIZE).
+  // Pagina um endpoint até o fim usando `temProximaPagina`, acumulando os itens.
+  const fetchAllPaginated = async (endpoint, extraParams = {}) => {
+    const all = [];
     let skip = 0;
     let hasNext = true;
 
     while (hasNext) {
-      const response = await api.get('/ContratoCliente', {
-        params: { Skip: skip, Take: SYNC_PAGE_SIZE, Status: 'Ativo' },
+      const response = await api.get(endpoint, {
+        params: { ...extraParams, Skip: skip, Take: SYNC_PAGE_SIZE },
       });
       const items = response.data?.items ?? [];
-      contracts = [...contracts, ...items];
+      all.push(...items);
       hasNext = response.data?.temProximaPagina ?? false;
       skip += SYNC_PAGE_SIZE;
     }
 
-    // Filtra contratos com IDs únicos
-    contracts = contracts.filter(
+    return all;
+  };
+
+  const fetchAllContracts = async () => {
+    const contracts = await fetchAllPaginated('/ContratoCliente');
+    // Mantém apenas um contrato por codigoCliente (o primeiro encontrado).
+    return contracts.filter(
       (contract, index, self) =>
         self.findIndex((c) => c.codigoCliente === contract.codigoCliente) === index,
     );
-
-    return contracts;
   };
 
   const fetchAllClientsPessoa = async () => {
-    let clients = [];
-    let skip = 0;
-    let hasNext = true;
-
-    while (hasNext) {
-      const response = await api.get('/Pessoa/GetClientes', {
-        params: { Skip: skip, Take: SYNC_PAGE_SIZE, Inativo: false },
-      });
-      const items = response.data?.items ?? [];
-      clients = [...clients, ...items];
-      hasNext = response.data?.temProximaPagina ?? false;
-      skip += SYNC_PAGE_SIZE;
-    }
-
-    return clients;
+    return fetchAllPaginated('/Pessoa/GetClientes', { Inativo: false });
   };
 
   const fetchAllClients = async () => {
@@ -94,14 +86,13 @@ export function SyncProvider({ children }) {
     isSyncingRef.current = true;
     setSyncing(true);
     try {
-      // 1. Busca todos os contratos ativos
-      const contracts = await fetchAllContracts();
-      console.log(contracts);
+      // Contratos e clientes são independentes: busca ambos em paralelo.
+      const [contracts, clients] = await Promise.all([
+        fetchAllContracts(),
+        fetchAllClientsPessoa(),
+      ]);
 
-      // 2. Busca todos os clientes não inativos
-      const clients = await fetchAllClientsPessoa();
-
-      // 3. Mapeia os contratos buscando os dados do cliente pelo codigoCliente
+      // Mapeia os contratos buscando os dados do cliente pelo codigoCliente
       const clientsMap = clients.reduce((map, client) => {
         map[client.id] = client;
         return map;
@@ -113,8 +104,10 @@ export function SyncProvider({ children }) {
       }));
 
       // Remove duplicatas por codigoCliente (mantém apenas o primeiro)
+      // e ignora clientes sem e-mail cadastrado.
       const uniqueClients = mergedClients.filter(
         (item, index, self) =>
+          (item.email || '').trim() !== '' &&
           self.findIndex((c) => c.codigoCliente === item.codigoCliente) === index,
       );
 
