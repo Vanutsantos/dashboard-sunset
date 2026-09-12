@@ -31,7 +31,6 @@ function TeacherForm() {
           id: teacher.id,
           nome: teacher.nome,
           porcentagem: teacher.porcentagem ?? undefined,
-          valorPorAluno: teacher.valorPorAluno ?? undefined,
         });
       } catch (err) {
         message.error('Erro ao carregar professor: ' + (err.message || 'Erro desconhecido'));
@@ -55,7 +54,6 @@ function TeacherForm() {
         id: values.id,
         nome: values.nome,
         porcentagem: values.porcentagem,
-        valorPorAluno: values.valorPorAluno,
       });
       message.success(
         isEdit ? 'Professor atualizado com sucesso!' : 'Professor cadastrado com sucesso!',
@@ -112,17 +110,6 @@ function TeacherForm() {
               if (digits === '') return '';
               return Math.min(100, Number(digits));
             }}
-          />
-        </Form.Item>
-
-        <Form.Item label="Valor por aluno" name="valorPorAluno">
-          <InputNumber
-            placeholder="Ex: 30,00"
-            min={0}
-            precision={2}
-            decimalSeparator=","
-            prefix="R$"
-            style={{ width: '100%' }}
           />
         </Form.Item>
 

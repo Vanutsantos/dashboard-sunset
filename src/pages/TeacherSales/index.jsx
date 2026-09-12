@@ -12,6 +12,7 @@ import {
   Tooltip,
   Typography,
   message,
+  theme,
 } from 'antd';
 import { useParams } from 'react-router-dom';
 import useTeachers from '../../hooks/useTeachers';
@@ -51,6 +52,18 @@ function getPeriodDivisor(descricao) {
   const desc = descricao || '';
   const match = PERIOD_DIVISORS.find((p) => p.regex.test(desc));
   return match ? match.months : 1;
+}
+
+// Vendas com estes termos na descrição são excluídas da listagem
+// (aluguel/locação de quadra, day use, mensalista e variações).
+const EXCLUDED_SALE_REGEX = /alug|loca[çc][ãa]o|day\s*use|mensalista/i;
+
+/**
+ * Indica se a venda deve ser removida da listagem com base na descrição.
+ * A comparação ignora maiúsculas/minúsculas e acentos (locação/locacao).
+ */
+function isExcludedSale(descricao) {
+  return EXCLUDED_SALE_REGEX.test(descricao || '');
 }
 
 const clientColumns = [
@@ -144,23 +157,24 @@ function TeacherSales() {
   const [selectedMonth, setSelectedMonth] = useState(dayjs());
   // Filtro de exibição de alunos: por padrão só mostra os que têm venda.
   const [onlyWithSales, setOnlyWithSales] = useState(true);
+  // Desconto (R$) aplicado ao repasse do mês. Apenas local, não é salvo.
+  const [desconto, setDesconto] = useState(null);
 
   const teacher = teachers.find((t) => String(t.id) === id);
+  const {
+    token: { colorFillAlter },
+  } = theme.useToken();
 
-  // Edição inline da porcentagem de repasse e do valor por aluno do professor.
+  // Edição inline da porcentagem de repasse do professor.
   const [editingPercent, setEditingPercent] = useState(false);
   const [percentValue, setPercentValue] = useState(teacher?.porcentagem ?? null);
-  const [editingValorAluno, setEditingValorAluno] = useState(false);
-  const [valorAlunoValue, setValorAlunoValue] = useState(teacher?.valorPorAluno ?? null);
   // Rastreia o professor renderizado para reiniciar o estado ao trocar/carregar,
   // sem usar efeito (padrão de ajuste de estado durante o render do React).
   const [syncedTeacher, setSyncedTeacher] = useState(teacher);
   if (syncedTeacher !== teacher) {
     setSyncedTeacher(teacher);
     setPercentValue(teacher?.porcentagem ?? null);
-    setValorAlunoValue(teacher?.valorPorAluno ?? null);
     setEditingPercent(false);
-    setEditingValorAluno(false);
   }
 
   const handleSavePercent = async () => {
@@ -171,33 +185,12 @@ function TeacherSales() {
         nome: teacher.nome,
         tipoAula: teacher.tipoAula,
         porcentagem: percentValue,
-        // Preserva o valor por aluno atual (setDoc faz merge campo a campo).
-        valorPorAluno: valorAlunoValue,
       });
       message.success('Porcentagem atualizada com sucesso!');
       setEditingPercent(false);
       refetchTeachers();
     } catch (err) {
       message.error('Erro ao salvar porcentagem: ' + (err.message || 'Erro desconhecido'));
-    }
-  };
-
-  const handleSaveValorAluno = async () => {
-    if (!teacher) return;
-    try {
-      await saveTeacher({
-        id: teacher.id,
-        nome: teacher.nome,
-        tipoAula: teacher.tipoAula,
-        // Preserva a porcentagem atual.
-        porcentagem: percentValue,
-        valorPorAluno: valorAlunoValue,
-      });
-      message.success('Valor por aluno atualizado com sucesso!');
-      setEditingValorAluno(false);
-      refetchTeachers();
-    } catch (err) {
-      message.error('Erro ao salvar valor por aluno: ' + (err.message || 'Erro desconhecido'));
     }
   };
 
@@ -249,11 +242,14 @@ function TeacherSales() {
 
             const items = response?.data?.items ?? [];
             result.push(
-              ...items.map((i) => ({
-                ...i,
-                clientId: client.codigoCliente,
-                clientNome: client.nome,
-              })),
+              ...items
+                // Remove vendas de aluguel/locação/day use/mensalista e similares.
+                .filter((i) => !isExcludedSale(i.descricao))
+                .map((i) => ({
+                  ...i,
+                  clientId: client.codigoCliente,
+                  clientNome: client.nome,
+                })),
             );
 
             hasNext = response?.data?.temProximaPagina ?? false;
@@ -263,8 +259,32 @@ function TeacherSales() {
           return result;
         };
 
+        // Nome dos planos Wellhub cujo primeiro registro de cada aluno é ignorado.
+        const WELLHUB_PLANS = ['Wellhub - Beach Tennis', 'Wellhub - Futevôlei'];
+
         for (const client of teacherClients) {
           const clientSales = await fetchClientSales(client);
+
+          // Marca o registro MAIS ANTIGO de CADA tipo de Wellhub (Beach Tennis
+          // e Futevôlei) do aluno como isento: continua na lista, mas com valor 0.
+          const oldestIndexByPlan = {};
+          const oldestTimeByPlan = {};
+          clientSales.forEach((s, index) => {
+            const desc = (s.descricao || '').trim();
+            if (!WELLHUB_PLANS.includes(desc)) return;
+            const time = dayjs(s.data).valueOf();
+            const t = Number.isNaN(time) ? Infinity : time;
+            if (oldestTimeByPlan[desc] === undefined || t < oldestTimeByPlan[desc]) {
+              oldestTimeByPlan[desc] = t;
+              oldestIndexByPlan[desc] = index;
+            }
+          });
+
+          const indexesToExempt = new Set(Object.values(oldestIndexByPlan));
+          clientSales.forEach((s, index) => {
+            if (indexesToExempt.has(index)) s.wellhubIsenta = true;
+          });
+
           salesItems.push(...clientSales);
         }
 
@@ -326,6 +346,50 @@ function TeacherSales() {
       map[sale.clientId].vendas.push(sale);
     };
 
+    // Cota Wellhub: as 8 primeiras (mais antigas) por aluno e por mês, contando
+    // Beach Tennis e Futevôlei JUNTOS, recebem o valor ajustado; da 9ª em diante
+    // mantêm o valor original. Aqui identificamos as vendas que excedem a cota.
+    const WELLHUB_MONTHLY_LIMIT = 8;
+    const wellhubExceededIds = new Set();
+    const wellhubCounters = {};
+    sales
+      .filter((s) => {
+        const d = (s.descricao || '').trim();
+        // Ignora as isentas (primeiro de cada tipo): não ocupam a cota das 8.
+        if (s.wellhubIsenta) return false;
+        return d === 'Wellhub - Beach Tennis' || d === 'Wellhub - Futevôlei';
+      })
+      // Ordena por data crescente (mais antigas primeiro) para respeitar "as 8 primeiras".
+      .sort((a, b) => dayjs(a.data).valueOf() - dayjs(b.data).valueOf())
+      .forEach((s) => {
+        const mes = dayjs(s.data).isValid() ? dayjs(s.data).format('YYYY-MM') : 'sem-data';
+        // Chave por aluno + mês (sem o tipo): os dois Wellhub contam juntos.
+        const key = `${s.clientId}|${mes}`;
+        const count = wellhubCounters[key] ?? 0;
+        wellhubCounters[key] = count + 1;
+        if (count >= WELLHUB_MONTHLY_LIMIT) {
+          wellhubExceededIds.add(s.id);
+        }
+      });
+
+    // Cota TotalPass - Beach Tennis: as 3 primeiras (mais antigas) por aluno e
+    // por mês recebem o valor ajustado; da 4ª em diante o valor é zerado.
+    const TOTALPASS_MONTHLY_LIMIT = 12;
+    const totalpassExceededIds = new Set();
+    const totalpassCounters = {};
+    sales
+      .filter((s) => (s.descricao || '').trim() === 'TotalPass - Beach Tennis')
+      .sort((a, b) => dayjs(a.data).valueOf() - dayjs(b.data).valueOf())
+      .forEach((s) => {
+        const mes = dayjs(s.data).isValid() ? dayjs(s.data).format('YYYY-MM') : 'sem-data';
+        const key = `${s.clientId}|${mes}`;
+        const count = totalpassCounters[key] ?? 0;
+        totalpassCounters[key] = count + 1;
+        if (count >= TOTALPASS_MONTHLY_LIMIT) {
+          totalpassExceededIds.add(s.id);
+        }
+      });
+
     sales.forEach((sale) => {
       const desc = (sale.descricao || '').trim();
 
@@ -337,6 +401,21 @@ function TeacherSales() {
         baseValor = 18;
       } else if (desc === 'TotalPass - Beach Tennis') {
         baseValor = 20.17;
+      }
+
+      // Wellhub que excede as 8 do mês/tipo/aluno mantém o valor original.
+      if (wellhubExceededIds.has(sale.id)) {
+        baseValor = sale.valorTotal;
+      }
+
+      // TotalPass - Beach Tennis que excede as 3 do mês/aluno tem valor zerado.
+      if (totalpassExceededIds.has(sale.id)) {
+        baseValor = 0;
+      }
+
+      // Primeiro Wellhub de cada tipo (o mais antigo do aluno): aparece com valor 0.
+      if (sale.wellhubIsenta) {
+        baseValor = 0;
       }
 
       const meses = getPeriodDivisor(desc);
@@ -362,7 +441,20 @@ function TeacherSales() {
       }
     });
 
+    // Verdadeiro quando a descrição contém "GYMPASS" ou "TOTALPASS" (em
+    // maiúsculo). Em minúsculo é outro tipo de venda e não conta aqui.
+    const isPassOnly = (sale) => {
+      const desc = sale.descricao || '';
+      return desc.includes('GYMPASS') || desc.includes('TOTALPASS');
+    };
+
     return Object.values(map)
+      // Com mês selecionado: se TODAS as vendas do mês forem GYMPASS/TOTALPASS,
+      // oculta o aluno; havendo qualquer outra venda no mês, ele aparece.
+      .filter((group) => {
+        if (!selectedMonth || group.vendas.length === 0) return true;
+        return group.vendas.some((sale) => !isPassOnly(sale));
+      })
       // Filtro "Com vendas": oculta alunos sem venda no mês. "Todos" mantém.
       .filter((group) => (onlyWithSales ? group.vendas.length > 0 : true))
       .map((group) => {
@@ -380,8 +472,8 @@ function TeacherSales() {
   const totalAlunos = groupedByClient.length;
   const totalGeral = groupedByClient.reduce((sum, g) => sum + (g.totalValor || 0), 0);
   const totalRepasse = calcRepasse(totalGeral, percentValue);
-  // Repasse (% sobre vendas) somado ao valor por aluno multiplicado pelo nº de alunos.
-  const totalRepasseComAluno = (totalRepasse ?? 0) + (valorAlunoValue ?? 0) * totalAlunos;
+  // Repasse líquido: repasse do mês menos o desconto informado (local).
+  const totalRepasseLiquido = (totalRepasse ?? 0) - (desconto ?? 0);
 
   return (
     <div>
@@ -401,6 +493,7 @@ function TeacherSales() {
           <Segmented
             value={onlyWithSales ? 'comVendas' : 'todos'}
             onChange={(val) => setOnlyWithSales(val === 'comVendas')}
+            disabled={loading}
             options={[
               { label: 'Com vendas', value: 'comVendas' },
               { label: 'Todos', value: 'todos' },
@@ -413,6 +506,7 @@ function TeacherSales() {
             format="MMMM/YYYY"
             allowClear={false}
             placeholder="Todas as datas"
+            disabled={loading}
             disabledDate={(current) => current && current.isAfter(dayjs(), 'month')}
             style={{ width: 170 }}
           />
@@ -433,8 +527,8 @@ function TeacherSales() {
         <Col xs={24} sm={10} lg={6}>
           <Card size="small" style={{ height: '100%' }}>
             <Statistic
-              title="Repasse + Valor por Aluno"
-              value={totalRepasseComAluno}
+              title={desconto ? 'Repasse (c/ desconto)' : 'Repasse'}
+              value={totalRepasseLiquido}
               precision={2}
               prefix="R$"
             />
@@ -442,8 +536,8 @@ function TeacherSales() {
         </Col>
         <Col xs={24} sm={24} lg={8}>
           <Card size="small" style={{ height: '100%' }}>
-            <Space size="medium" align="start">
-              <div style={{with:"50%"}}>
+            <Space size="large" align="start" wrap>
+              <div>
                 <Text
                   type="secondary"
                   style={{ display: 'block', fontSize: 14, marginBottom: 4 }}
@@ -454,14 +548,14 @@ function TeacherSales() {
                   <InputNumber
                     value={percentValue}
                     onChange={setPercentValue}
-                    disabled={!editingPercent || !teacher}
+                    disabled={!editingPercent || !teacher || loading}
                     controls={false}
                     min={0}
                     max={100}
                     precision={0}
                     suffix="%"
                     placeholder="—"
-                    style={{ width: 80 }}
+                    style={{ width: 90 }}
                     parser={(value) => {
                       const digits = (value || '').replace(/\D/g, '');
                       if (digits === '') return '';
@@ -481,7 +575,7 @@ function TeacherSales() {
                     <Tooltip title="Editar porcentagem">
                       <Button
                         icon={<EditOutlined />}
-                        disabled={!teacher}
+                        disabled={!teacher || loading}
                         onClick={() => setEditingPercent(true)}
                       />
                     </Tooltip>
@@ -489,45 +583,25 @@ function TeacherSales() {
                 </Space>
               </div>
 
-              <div style={{with:"50%"}}>
+              <div>
                 <Text
                   type="secondary"
                   style={{ display: 'block', fontSize: 14, marginBottom: 4 }}
                 >
-                  Valor por aluno
+                  Desconto
                 </Text>
-                <Space align="center" size="small">
-                  <InputNumber
-                    value={valorAlunoValue}
-                    onChange={setValorAlunoValue}
-                    disabled={!editingValorAluno || !teacher}
-                    controls={false}
-                    min={0}
-                    precision={2}
-                    decimalSeparator=","
-                    prefix="R$"
-                    placeholder="—"
-                    style={{ width: 100 }}
-                  />
-                  {editingValorAluno ? (
-                    <Tooltip title="Salvar">
-                      <Button
-                        type="primary"
-                        icon={<SaveOutlined />}
-                        loading={saving}
-                        onClick={handleSaveValorAluno}
-                      />
-                    </Tooltip>
-                  ) : (
-                    <Tooltip title="Editar valor por aluno">
-                      <Button
-                        icon={<EditOutlined />}
-                        disabled={!teacher}
-                        onClick={() => setEditingValorAluno(true)}
-                      />
-                    </Tooltip>
-                  )}
-                </Space>
+                <InputNumber
+                  value={desconto}
+                  onChange={setDesconto}
+                  disabled={loading}
+                  min={0}
+                  precision={2}
+                  decimalSeparator=","
+                  prefix="R$"
+                  placeholder="0,00"
+                  controls={false}
+                  style={{ width: 120 }}
+                />
               </div>
             </Space>
           </Card>
@@ -544,14 +618,16 @@ function TeacherSales() {
         style={{ marginTop: 16 }}
         expandable={{
           expandedRowRender: (record) => (
-            <Table
-              dataSource={record.vendas}
-              columns={salesColumns}
-              rowKey="id"
-              pagination={false}
-              size="small"
-              scroll={{ x: 'max-content' }}
-            />
+            <div style={{ background: colorFillAlter, padding: 8, borderRadius: 6 }}>
+              <Table
+                dataSource={record.vendas}
+                columns={salesColumns}
+                rowKey="id"
+                pagination={false}
+                size="small"
+                scroll={{ x: 'max-content' }}
+              />
+            </div>
           ),
         }}
       />

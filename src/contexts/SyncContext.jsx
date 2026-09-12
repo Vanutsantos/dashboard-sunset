@@ -68,46 +68,23 @@ export function SyncProvider({ children }) {
     return all;
   };
 
-  const fetchAllContracts = async () => {
-    const contracts = await fetchAllPaginated('/ContratoCliente');
-    // Mantém apenas um contrato por codigoCliente (o primeiro encontrado).
-    return contracts.filter(
-      (contract, index, self) =>
-        self.findIndex((c) => c.codigoCliente === contract.codigoCliente) === index,
-    );
-  };
-
-  const fetchAllClientsPessoa = async () => {
-    return fetchAllPaginated('/Pessoa/GetClientes', { Inativo: false });
-  };
-
   const fetchAllClients = async () => {
     if (isSyncingRef.current) return;
     isSyncingRef.current = true;
     setSyncing(true);
     try {
-      // Contratos e clientes são independentes: busca ambos em paralelo.
-      const [contracts, clients] = await Promise.all([
-        fetchAllContracts(),
-        fetchAllClientsPessoa(),
-      ]);
+      // Busca apenas os clientes (Pessoa). O contrato não é mais necessário.
+      const clients = await fetchAllPaginated('/Pessoa/GetClientes', { Inativo: false });
 
-      // Mapeia os contratos buscando os dados do cliente pelo codigoCliente
-      const clientsMap = clients.reduce((map, client) => {
-        map[client.id] = client;
-        return map;
-      }, {});
+      const normalized = clients
+        // Ignora clientes sem e-mail cadastrado.
+        // .filter((client) => (client.email || '').trim() !== '')
+        // O identificador de cliente (codigoCliente) é o id da pessoa.
+        .map((client) => ({ ...client, codigoCliente: client.id }));
 
-      const mergedClients = contracts.map((contract) => ({
-        ...contract,
-        ...clientsMap[contract.codigoCliente],
-      }));
-
-      // Remove duplicatas por codigoCliente (mantém apenas o primeiro)
-      // e ignora clientes sem e-mail cadastrado.
-      const uniqueClients = mergedClients.filter(
+      // Remove duplicatas por codigoCliente (mantém apenas o primeiro).
+      const uniqueClients = normalized.filter(
         (item, index, self) =>
-          (item.email || '').trim() !== '' &&
           self.findIndex((c) => c.codigoCliente === item.codigoCliente) === index,
       );
 
