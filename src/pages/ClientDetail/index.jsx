@@ -144,7 +144,6 @@ function ClientDetail() {
         <Descriptions.Item label="E-mail">{client.email ?? '-'}</Descriptions.Item>
         <Descriptions.Item label="Professor">{teacherName}</Descriptions.Item>
         <Descriptions.Item label="Sexo">{client.sexo ?? '-'}</Descriptions.Item>
-        <Descriptions.Item label="Status">{client.status ?? '-'}</Descriptions.Item>
       </Descriptions>
 
       <Row gutter={16} style={{ marginTop: 16 }}>

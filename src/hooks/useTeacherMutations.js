@@ -22,17 +22,16 @@ function useTeacherMutations() {
     return snapshot.exists();
   }, []);
 
-  const saveTeacher = useCallback(async ({ id, nome, tipoAula, porcentagem, valorPorAluno }) => {
+  const saveTeacher = useCallback(async ({ id, nome, tipoAula, porcentagem }) => {
     setSaving(true);
     try {
       const data = {
         id: String(id),
         nome,
         porcentagem: porcentagem ?? null,
-        valorPorAluno: valorPorAluno ?? null,
       };
       // Só grava tipoAula quando informado, para não apagar o valor existente
-      // (o formulário não usa mais esse campo, mas outros fluxos podem enviá-lo).
+      // quando o campo não faz parte do fluxo que está salvando.
       if (tipoAula !== undefined) {
         data.tipoAula = tipoAula ?? null;
       }
