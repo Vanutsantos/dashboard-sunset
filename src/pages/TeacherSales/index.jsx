@@ -3,7 +3,10 @@ import {
   Card,
   Col,
   DatePicker,
+  Form,
+  Input,
   InputNumber,
+  Modal,
   Row,
   Segmented,
   Space,
@@ -17,9 +20,16 @@ import {
 import { useParams } from 'react-router-dom';
 import useTeachers from '../../hooks/useTeachers';
 import useTeacherMutations from '../../hooks/useTeacherMutations';
+import useManualSales from '../../hooks/useManualSales';
 import { useSync } from '../../contexts/SyncContext';
-import { useEffect, useMemo, useState } from 'react';
-import { EditOutlined, SaveOutlined } from '@ant-design/icons';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  EditOutlined,
+  SaveOutlined,
+  PlusOutlined,
+  DeleteOutlined,
+  ExclamationCircleOutlined,
+} from '@ant-design/icons';
 import api from '../../services/api';
 import dayjs from 'dayjs';
 
@@ -75,7 +85,12 @@ const clientColumns = [
     render: (_, __, index) => index + 1,
   },
   { title: 'ID', dataIndex: 'clientId', key: 'clientId', width: 100 },
-  { title: 'Nome', dataIndex: 'nome', key: 'nome' },
+  {
+    title: 'Nome',
+    dataIndex: 'nome',
+    key: 'nome',
+    render: (nome) => (nome || '').toUpperCase(),
+  },
   {
     title: 'Qtd. Vendas',
     dataIndex: 'totalVendas',
@@ -150,6 +165,7 @@ function TeacherSales() {
   const { id } = useParams();
   const { data: teachers, refetch: refetchTeachers } = useTeachers();
   const { saving, saveTeacher } = useTeacherMutations();
+  const { saving: savingSale, createSale, getSalesByTeacher, deleteSale } = useManualSales();
   const { allClients } = useSync();
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -159,6 +175,11 @@ function TeacherSales() {
   const [onlyWithSales, setOnlyWithSales] = useState(true);
   // Desconto (R$) aplicado ao repasse do mês. Apenas local, não é salvo.
   const [desconto, setDesconto] = useState(null);
+  // Modal de nova venda.
+  const [saleModalOpen, setSaleModalOpen] = useState(false);
+  const [saleForm] = Form.useForm();
+  // Vendas avulsas (manuais) do professor, carregadas do Firestore.
+  const [manualSales, setManualSales] = useState([]);
 
   const teacher = teachers.find((t) => String(t.id) === id);
   const {
@@ -192,6 +213,48 @@ function TeacherSales() {
     } catch (err) {
       message.error('Erro ao salvar porcentagem: ' + (err.message || 'Erro desconhecido'));
     }
+  };
+
+  const handleSaveSale = async () => {
+    try {
+      const values = await saleForm.validateFields();
+      await createSale({
+        teacherId: id,
+        nomeAluno: values.nomeAluno,
+        descricao: values.descricao,
+        // Salva a data como ISO (yyyy-mm-dd); dayjs vem do DatePicker.
+        data: values.data ? values.data.format('YYYY-MM-DD') : null,
+        valor: values.valor ?? null,
+      });
+      message.success('Venda cadastrada com sucesso!');
+      saleForm.resetFields();
+      setSaleModalOpen(false);
+      loadManualSales();
+    } catch (err) {
+      // Erros de validação do form não têm .message de API; ignora esses.
+      if (err?.errorFields) return;
+      message.error('Erro ao cadastrar venda: ' + (err.message || 'Erro desconhecido'));
+    }
+  };
+
+  const handleDeleteSale = (sale) => {
+    Modal.confirm({
+      title: 'Excluir venda avulsa',
+      icon: <ExclamationCircleOutlined />,
+      content: `Tem certeza que deseja excluir "${sale.descricao || 'esta venda'}"? Esta ação não pode ser desfeita.`,
+      okText: 'Excluir',
+      okButtonProps: { danger: true },
+      cancelText: 'Cancelar',
+      onOk: async () => {
+        try {
+          await deleteSale(sale.docId);
+          message.success('Venda excluída com sucesso!');
+          loadManualSales();
+        } catch (err) {
+          message.error('Erro ao excluir venda: ' + (err.message || 'Erro desconhecido'));
+        }
+      },
+    });
   };
 
   const teacherClients = useMemo(
@@ -310,6 +373,25 @@ function TeacherSales() {
     // teacherClientsKey representa a identidade estável de teacherClients.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teacherClientsKey]);
+
+  // Carrega as vendas avulsas (manuais) do professor atual.
+  const loadManualSales = useCallback(async () => {
+    if (!id) {
+      setManualSales([]);
+      return;
+    }
+    try {
+      const items = await getSalesByTeacher(id);
+      setManualSales(items);
+    } catch (err) {
+      console.error('Erro ao carregar vendas avulsas: ' + (err.message || 'Erro desconhecido'));
+      setManualSales([]);
+    }
+  }, [id, getSalesByTeacher]);
+
+  useEffect(() => {
+    loadManualSales();
+  }, [loadManualSales]);
 
   // Agrupa vendas por cliente. Planos de vários meses (trimestral, semestral,
   // anual...) têm o valor dividido pela quantidade de meses e são replicados,
@@ -448,7 +530,7 @@ function TeacherSales() {
       return desc.includes('GYMPASS') || desc.includes('TOTALPASS');
     };
 
-    return Object.values(map)
+    const groups = Object.values(map)
       // Com mês selecionado: se TODAS as vendas do mês forem GYMPASS/TOTALPASS,
       // oculta o aluno; havendo qualquer outra venda no mês, ele aparece.
       .filter((group) => {
@@ -467,13 +549,75 @@ function TeacherSales() {
         };
       })
       .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
-  }, [sales, teacherClients, selectedMonth, onlyWithSales]);
+
+    // Vendas avulsas (manuais): agrupadas em um único item "Vendas avulsas",
+    // respeitando o mês selecionado. Aparece na primeira posição quando há ao
+    // menos uma venda avulsa no mês.
+    const avulsasDoMes = (manualSales || [])
+      .filter((s) => matchesMonth(s.data))
+      .map((s) => ({
+        // ID da venda: apenas os 10 últimos caracteres do id do documento.
+        id: String(s.id).slice(-10),
+        // Id real do documento, usado para excluir.
+        docId: s.id,
+        // Descrição exibida: "{nome do aluno} - {descrição}".
+        descricao: s.nomeAluno ? `${s.nomeAluno} - ${s.descricao ?? ''}` : (s.descricao ?? ''),
+        valorTotal: s.valor,
+        data: s.data,
+      }))
+      .sort((a, b) => dayjs(b.data).valueOf() - dayjs(a.data).valueOf());
+
+    const clientGroups = groups;
+
+    if (avulsasDoMes.length > 0) {
+      const totalValor = avulsasDoMes.reduce((sum, v) => sum + (v.valorTotal || 0), 0);
+      const avulsasGroup = {
+        clientId: '00000000',
+        key: '00000000',
+        nome: 'Vendas avulsas',
+        vendas: avulsasDoMes,
+        totalVendas: avulsasDoMes.length,
+        totalValor,
+      };
+      // "Vendas avulsas" sempre na primeira posição.
+      return [avulsasGroup, ...clientGroups];
+    }
+
+    return clientGroups;
+  }, [sales, teacherClients, selectedMonth, onlyWithSales, manualSales]);
 
   const totalAlunos = groupedByClient.length;
   const totalGeral = groupedByClient.reduce((sum, g) => sum + (g.totalValor || 0), 0);
   const totalRepasse = calcRepasse(totalGeral, percentValue);
   // Repasse líquido: repasse do mês menos o desconto informado (local).
   const totalRepasseLiquido = (totalRepasse ?? 0) - (desconto ?? 0);
+
+  // Colunas da sub-tabela de vendas avulsas: iguais às de vendas, mais uma
+  // coluna de ação para excluir a venda avulsa.
+  const avulsasColumns = useMemo(
+    () => [
+      ...salesColumns,
+      {
+        title: 'Ações',
+        key: 'acoes',
+        width: 80,
+        align: 'center',
+        render: (_, record) => (
+          <Tooltip title="Excluir">
+            <Button
+              type="text"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => handleDeleteSale(record)}
+            />
+          </Tooltip>
+        ),
+      },
+    ],
+    // handleDeleteSale é estável o suficiente para o escopo desta tela.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
 
   return (
     <div>
@@ -490,6 +634,14 @@ function TeacherSales() {
           {teacher?.nome || 'Professor'}
         </Title>
         <Space align="center" size="small" wrap>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            disabled={loading}
+            onClick={() => setSaleModalOpen(true)}
+          >
+            Nova venda
+          </Button>
           <Segmented
             value={onlyWithSales ? 'comVendas' : 'todos'}
             onChange={(val) => setOnlyWithSales(val === 'comVendas')}
@@ -621,7 +773,7 @@ function TeacherSales() {
             <div style={{ background: colorFillAlter, padding: 8, borderRadius: 6 }}>
               <Table
                 dataSource={record.vendas}
-                columns={salesColumns}
+                columns={record.clientId === '00000000' ? avulsasColumns : salesColumns}
                 rowKey="id"
                 pagination={false}
                 size="small"
@@ -631,6 +783,56 @@ function TeacherSales() {
           ),
         }}
       />
+
+      <Modal
+        title="Nova venda"
+        open={saleModalOpen}
+        onCancel={() => setSaleModalOpen(false)}
+        okText="Salvar"
+        cancelText="Cancelar"
+        onOk={handleSaveSale}
+        confirmLoading={savingSale}
+        destroyOnClose
+      >
+        <Form form={saleForm} layout="vertical">
+          <Form.Item
+            label="Nome do aluno"
+            name="nomeAluno"
+            rules={[{ required: true, message: 'Informe o nome do aluno' }]}
+          >
+            <Input placeholder="Nome do aluno" />
+          </Form.Item>
+          <Form.Item
+            label="Descrição da venda"
+            name="descricao"
+            rules={[{ required: true, message: 'Informe a descrição da venda' }]}
+          >
+            <Input placeholder="Descrição da venda" />
+          </Form.Item>
+          <Form.Item
+            label="Data"
+            name="data"
+            rules={[{ required: true, message: 'Informe a data' }]}
+          >
+            <DatePicker format="DD/MM/YYYY" style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item
+            label="Valor"
+            name="valor"
+            rules={[{ required: true, message: 'Informe o valor' }]}
+          >
+            <InputNumber
+              min={0}
+              precision={2}
+              decimalSeparator=","
+              prefix="R$"
+              placeholder="0,00"
+              controls={false}
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 }
