@@ -8,10 +8,18 @@ import {
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { PATHS } from '../../routes/paths';
+import { PATHS, teacherSalesPath } from '../../routes/paths';
 import logo from '../../assets/logo.jpg';
 
-const menuItems = [
+const logoutItem = {
+  key: 'logout',
+  icon: <LogoutOutlined />,
+  label: 'Sair',
+  danger: true,
+};
+
+// Menu completo (admin).
+const adminMenuItems = [
   {
     key: PATHS.home,
     icon: <DashboardOutlined />,
@@ -32,24 +40,39 @@ const menuItems = [
     icon: <ShoppingCartOutlined />,
     label: 'Vendas',
   },
-  {
-    type: 'divider',
-  },
-  {
-    key: 'logout',
-    icon: <LogoutOutlined />,
-    label: 'Sair',
-    danger: true,
-  },
+  { type: 'divider' },
+  logoutItem,
 ];
 
 function Sidebar({ collapsed, onNavigate }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout } = useAuth();
+  const { logout, isTeacher, teacher, roleResolved } = useAuth();
   const {
     token: { colorBorderSecondary },
   } = theme.useToken();
+
+  // Por padrão o menu não expõe itens de admin. Só mostramos o menu completo
+  // depois de confirmar que o papel foi resolvido E o usuário não é professor.
+  let menuItems;
+  if (roleResolved && isTeacher && teacher) {
+    // Professor: apenas a própria página de vendas.
+    menuItems = [
+      {
+        key: teacherSalesPath(teacher.id),
+        icon: <ShoppingCartOutlined />,
+        label: 'Minhas vendas',
+      },
+      { type: 'divider' },
+      logoutItem,
+    ];
+  } else if (roleResolved && !isTeacher) {
+    // Admin: menu completo.
+    menuItems = adminMenuItems;
+  } else {
+    // Papel ainda não resolvido: só o "Sair" (nada de admin/aluno por engano).
+    menuItems = [logoutItem];
+  }
 
   const handleMenuClick = ({ key }) => {
     if (key === 'logout') {

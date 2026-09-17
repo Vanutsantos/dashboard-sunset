@@ -29,7 +29,9 @@ function TeacherForm() {
         }
         form.setFieldsValue({
           id: teacher.id,
+          idUsuario: teacher.idUsuario ?? undefined,
           nome: teacher.nome,
+          email: teacher.email ?? undefined,
           porcentagem: teacher.porcentagem ?? undefined,
         });
       } catch (err) {
@@ -52,7 +54,9 @@ function TeacherForm() {
       }
       await saveTeacher({
         id: values.id,
+        idUsuario: values.idUsuario,
         nome: values.nome,
+        email: values.email,
         porcentagem: values.porcentagem,
       });
       message.success(
@@ -85,11 +89,30 @@ function TeacherForm() {
         </Form.Item>
 
         <Form.Item
+          label="ID de usuário"
+          name="idUsuario"
+          rules={[{ required: true, message: 'Informe o ID de usuário' }]}
+        >
+          <Input placeholder="Ex: 22344097" />
+        </Form.Item>
+
+        <Form.Item
           label="Nome"
           name="nome"
           rules={[{ required: true, message: 'Informe o nome do professor' }]}
         >
           <Input placeholder="Nome completo" />
+        </Form.Item>
+
+        <Form.Item
+          label="E-mail"
+          name="email"
+          rules={[
+            { required: true, message: 'Informe o e-mail do professor' },
+            { type: 'email', message: 'E-mail inválido' },
+          ]}
+        >
+          <Input placeholder="professor@email.com" />
         </Form.Item>
 
         <Form.Item

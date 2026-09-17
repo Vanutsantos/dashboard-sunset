@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom';
 import { SyncProvider } from '../contexts/SyncContext';
 import PrivateRoute from '../components/PrivateRoute';
 import PublicRoute from '../components/PublicRoute';
+import TeacherRoute from '../components/TeacherRoute';
 import RouteErrorBoundary from '../components/RouteErrorBoundary';
 import DashboardLayout from '../components/DashboardLayout';
 import RootLayout from './RootLayout';
@@ -15,6 +16,7 @@ import TeacherForm from '../pages/TeacherForm';
 import TeacherSales from '../pages/TeacherSales';
 import Sales from '../pages/Sales';
 import Login from '../pages/Login';
+import ForgotPassword from '../pages/ForgotPassword';
 import NotFound from '../pages/NotFound';
 
 /**
@@ -41,7 +43,10 @@ export const routes = [
     children: [
       {
         element: <PublicRoute />,
-        children: [{ path: PATHS.login, element: <Login /> }],
+        children: [
+          { path: PATHS.login, element: <Login /> },
+          { path: PATHS.forgotPassword, element: <ForgotPassword /> },
+        ],
       },
       {
         element: <PrivateRoute />,
@@ -53,14 +58,20 @@ export const routes = [
               </SyncProvider>
             ),
             children: [
-              { index: true, element: <Dashboard /> },
-              { path: PATHS.clients, element: <Clients /> },
-              { path: PATHS.clientDetail, element: <ClientDetail /> },
-              { path: PATHS.teachers, element: <Teachers /> },
-              { path: PATHS.teacherNew, element: <TeacherForm /> },
-              { path: PATHS.teacherEdit, element: <TeacherForm /> },
-              { path: PATHS.teacherSales, element: <TeacherSales /> },
-              { path: PATHS.sales, element: <Sales /> },
+              {
+                // Restringe professores à própria página de vendas; admin livre.
+                element: <TeacherRoute />,
+                children: [
+                  { index: true, element: <Dashboard /> },
+                  { path: PATHS.clients, element: <Clients /> },
+                  { path: PATHS.clientDetail, element: <ClientDetail /> },
+                  { path: PATHS.teachers, element: <Teachers /> },
+                  { path: PATHS.teacherNew, element: <TeacherForm /> },
+                  { path: PATHS.teacherEdit, element: <TeacherForm /> },
+                  { path: PATHS.teacherSales, element: <TeacherSales /> },
+                  { path: PATHS.sales, element: <Sales /> },
+                ],
+              },
             ],
           },
         ],

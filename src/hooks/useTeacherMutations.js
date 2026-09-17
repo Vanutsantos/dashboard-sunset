@@ -22,7 +22,7 @@ function useTeacherMutations() {
     return snapshot.exists();
   }, []);
 
-  const saveTeacher = useCallback(async ({ id, nome, tipoAula, porcentagem }) => {
+  const saveTeacher = useCallback(async ({ id, idUsuario, nome, email, tipoAula, porcentagem }) => {
     setSaving(true);
     try {
       const data = {
@@ -30,10 +30,16 @@ function useTeacherMutations() {
         nome,
         porcentagem: porcentagem ?? null,
       };
-      // Só grava tipoAula quando informado, para não apagar o valor existente
-      // quando o campo não faz parte do fluxo que está salvando.
+      // Só grava tipoAula/email/idUsuario quando informados, para não apagar o
+      // valor existente quando o campo não faz parte do fluxo que está salvando.
       if (tipoAula !== undefined) {
         data.tipoAula = tipoAula ?? null;
+      }
+      if (email !== undefined) {
+        data.email = email ?? null;
+      }
+      if (idUsuario !== undefined) {
+        data.idUsuario = idUsuario ?? null;
       }
       // merge evita remover campos do documento que não foram enviados aqui.
       await setDoc(doc(db, COLLECTION, String(id)), data, { merge: true });

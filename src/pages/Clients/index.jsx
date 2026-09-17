@@ -1,9 +1,10 @@
 import { useState, useMemo, useCallback, useRef } from 'react';
-import { Typography, Table, Input, Button, Space } from 'antd';
+import { Typography, Input, Button, Space } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useSync } from '../../contexts/SyncContext';
 import useTeachers from '../../hooks/useTeachers';
+import ResponsiveTable from '../../components/ResponsiveTable';
 import { clientDetailPath } from '../../routes/paths';
 
 const { Title } = Typography;
@@ -93,7 +94,7 @@ function Clients() {
           style={{ width: '100%', maxWidth: 300 }}
         />
       </div>
-      <Table
+      <ResponsiveTable
         dataSource={paginatedData}
         columns={columns}
         rowKey="id"

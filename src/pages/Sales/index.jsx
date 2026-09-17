@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Typography, Table, Tag, Button, Space, DatePicker } from 'antd';
+import { Typography, Tag, Button, Space, DatePicker } from 'antd';
 import dayjs from 'dayjs';
 import api from '../../services/api';
+import ResponsiveTable from '../../components/ResponsiveTable';
 import { formatCurrency, formatDate } from '../../utils/format';
 import { statusColor } from '../../utils/sales';
 
@@ -103,7 +104,7 @@ function Sales() {
           style={{ width: 150 }}
         />
       </div>
-      <Table
+      <ResponsiveTable
         dataSource={data}
         columns={columns}
         rowKey="id"
