@@ -1,5 +1,6 @@
-import { Typography, Table, Button, Space, Modal, message } from 'antd';
+import { Typography, Button, Space, Modal, message } from 'antd';
 import { Link, useNavigate } from 'react-router-dom';
+import ResponsiveTable from '../../components/ResponsiveTable';
 import {
   EyeOutlined,
   PlusOutlined,
@@ -87,7 +88,7 @@ function Teachers() {
           </Button>
         </Link>
       </div>
-      <Table
+      <ResponsiveTable
         dataSource={data || []}
         columns={columns}
         rowKey="id"

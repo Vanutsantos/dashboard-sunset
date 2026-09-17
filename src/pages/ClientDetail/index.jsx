@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   Typography,
   Descriptions,
-  Table,
   Tag,
   Button,
   Card,
@@ -14,6 +13,7 @@ import {
   Spin,
 } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
+import ResponsiveTable from '../../components/ResponsiveTable';
 import { useSync } from '../../contexts/SyncContext';
 import useTeachers from '../../hooks/useTeachers';
 import api from '../../services/api';
@@ -166,7 +166,7 @@ function ClientDetail() {
       <Title level={5} style={{ marginTop: 24 }}>
         Histórico de vendas
       </Title>
-      <Table
+      <ResponsiveTable
         dataSource={sales}
         columns={salesColumns}
         rowKey="id"

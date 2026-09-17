@@ -5,6 +5,7 @@
  */
 export const PATHS = {
   login: '/login',
+  forgotPassword: '/forgot-password',
   home: '/',
   clients: '/clients',
   teachers: '/teachers',

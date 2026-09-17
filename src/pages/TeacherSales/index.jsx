@@ -11,7 +11,6 @@ import {
   Segmented,
   Space,
   Statistic,
-  Table,
   Tooltip,
   Typography,
   message,
@@ -21,6 +20,7 @@ import { useParams } from 'react-router-dom';
 import useTeachers from '../../hooks/useTeachers';
 import useTeacherMutations from '../../hooks/useTeacherMutations';
 import useManualSales from '../../hooks/useManualSales';
+import ResponsiveTable from '../../components/ResponsiveTable';
 import { useSync } from '../../contexts/SyncContext';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -760,7 +760,7 @@ function TeacherSales() {
         </Col>
       </Row>
 
-      <Table
+      <ResponsiveTable
         dataSource={groupedByClient}
         columns={clientColumns}
         rowKey="clientId"
@@ -771,7 +771,7 @@ function TeacherSales() {
         expandable={{
           expandedRowRender: (record) => (
             <div style={{ background: colorFillAlter, padding: 8, borderRadius: 6 }}>
-              <Table
+              <ResponsiveTable
                 dataSource={record.vendas}
                 columns={record.clientId === '00000000' ? avulsasColumns : salesColumns}
                 rowKey="id"

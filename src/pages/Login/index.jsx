@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import '../../services/firebase';
 import { recordLogin } from '../../services/loginLog';
+import { PATHS } from '../../routes/paths';
 import logo from '../../assets/logo.jpg';
 
 const auth = getAuth();
@@ -90,6 +91,7 @@ function Login() {
             label="Senha"
             name="password"
             rules={[{ required: true, message: 'Informe sua senha' }]}
+            style={{ marginBottom: 8 }}
           >
             <Input.Password
               prefix={<LockOutlined />}
@@ -98,6 +100,12 @@ function Login() {
               onPressEnter={() => form.submit()}
             />
           </Form.Item>
+
+          <div style={{ textAlign: 'right', marginBottom: 16 }}>
+            <Button type="link" style={{ padding: 0 }} onClick={() => navigate(PATHS.forgotPassword)}>
+              Esqueci minha senha
+            </Button>
+          </div>
 
           <Form.Item>
             <Button type="primary" htmlType="submit" block size="large" loading={loading}>
