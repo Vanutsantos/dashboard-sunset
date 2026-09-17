@@ -29,6 +29,7 @@ import {
   PlusOutlined,
   DeleteOutlined,
   ExclamationCircleOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
 import api from '../../services/api';
 import dayjs from 'dayjs';
@@ -169,6 +170,8 @@ function TeacherSales() {
   const { allClients } = useSync();
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(false);
+  // Busca por nome do aluno (filtro local sobre a lista exibida).
+  const [search, setSearch] = useState('');
   // Filtro de mês aplicado apenas no front (a busca traz todas as vendas).
   const [selectedMonth, setSelectedMonth] = useState(dayjs());
   // Filtro de exibição de alunos: por padrão só mostra os que têm venda.
@@ -592,6 +595,19 @@ function TeacherSales() {
   // Repasse líquido: repasse do mês menos o desconto informado (local).
   const totalRepasseLiquido = (totalRepasse ?? 0) - (desconto ?? 0);
 
+  // Lista exibida na tabela, filtrada pela busca por nome (não afeta os totais).
+  const displayedGroups = useMemo(() => {
+    const term = search.trim();
+    if (!term) return groupedByClient;
+    const normalize = (str) =>
+      (str || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+    const normalizedTerm = normalize(term);
+    return groupedByClient.filter((g) => normalize(g.nome).includes(normalizedTerm));
+  }, [groupedByClient, search]);
+
   // Colunas da sub-tabela de vendas avulsas: iguais às de vendas, mais uma
   // coluna de ação para excluir a venda avulsa.
   const avulsasColumns = useMemo(
@@ -634,6 +650,15 @@ function TeacherSales() {
           {teacher?.nome || 'Professor'}
         </Title>
         <Space align="center" size="small" wrap>
+          <Input
+            allowClear
+            prefix={<SearchOutlined />}
+            placeholder="Buscar por nome"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            disabled={loading}
+            style={{ width: 200 }}
+          />
           <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -761,7 +786,7 @@ function TeacherSales() {
       </Row>
 
       <ResponsiveTable
-        dataSource={groupedByClient}
+        dataSource={displayedGroups}
         columns={clientColumns}
         rowKey="clientId"
         loading={loading}
