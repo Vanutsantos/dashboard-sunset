@@ -5,8 +5,8 @@ import { teacherSalesPath } from '../../routes/paths';
 /**
  * Guarda de acesso por papel.
  * - Admin (usuário sem professor vinculado): acesso liberado a todas as rotas.
- * - Professor (usuário vinculado a um professor pelo e-mail): só pode acessar
- *   a própria página de vendas (/teacher-sales/{seuId}). Qualquer outra rota
+ * - Professor (usuário cujo e-mail casa com um teacher): só pode acessar a
+ *   própria página de vendas (/teacher-sales/{seuId}); qualquer outra rota
  *   redireciona para lá.
  */
 function TeacherRoute() {
@@ -14,7 +14,6 @@ function TeacherRoute() {
   const location = useLocation();
 
   if (!isTeacher) {
-    // Admin: sem restrições.
     return <Outlet />;
   }
 
