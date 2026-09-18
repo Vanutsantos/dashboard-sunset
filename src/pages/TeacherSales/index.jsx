@@ -64,7 +64,7 @@ function getPeriodDivisor(descricao) {
 
 // Vendas com estes termos na descrição são excluídas da listagem
 // (aluguel/locação de quadra, day use, mensalista e variações).
-const EXCLUDED_SALE_REGEX = /alug|loca[çc][ãa]o|day\s*use|mensalista/i;
+const EXCLUDED_SALE_REGEX = /alug|loca[çc][ãa]o|day\s*use|mensalista|reposi[çc][ãa]o/i;
 
 /**
  * Indica se a venda deve ser removida da listagem com base na descrição.
