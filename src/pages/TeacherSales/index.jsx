@@ -18,14 +18,11 @@ import {
 } from 'antd';
 import { useParams } from 'react-router-dom';
 import useTeachers from '../../hooks/useTeachers';
-import useTeacherMutations from '../../hooks/useTeacherMutations';
 import useManualSales from '../../hooks/useManualSales';
 import ResponsiveTable from '../../components/ResponsiveTable';
 import { useSync } from '../../contexts/SyncContext';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  EditOutlined,
-  SaveOutlined,
   PlusOutlined,
   DeleteOutlined,
   ExclamationCircleOutlined,
@@ -164,8 +161,7 @@ const salesColumns = [
 
 function TeacherSales() {
   const { id } = useParams();
-  const { data: teachers, refetch: refetchTeachers } = useTeachers();
-  const { saving, saveTeacher } = useTeacherMutations();
+  const { data: teachers } = useTeachers();
   const { saving: savingSale, createSale, getSalesByTeacher, deleteSale } = useManualSales();
   const { allClients } = useSync();
   const [sales, setSales] = useState([]);
@@ -189,34 +185,8 @@ function TeacherSales() {
     token: { colorFillAlter },
   } = theme.useToken();
 
-  // Edição inline da porcentagem de repasse do professor.
-  const [editingPercent, setEditingPercent] = useState(false);
-  const [percentValue, setPercentValue] = useState(teacher?.porcentagem ?? null);
-  // Rastreia o professor renderizado para reiniciar o estado ao trocar/carregar,
-  // sem usar efeito (padrão de ajuste de estado durante o render do React).
-  const [syncedTeacher, setSyncedTeacher] = useState(teacher);
-  if (syncedTeacher !== teacher) {
-    setSyncedTeacher(teacher);
-    setPercentValue(teacher?.porcentagem ?? null);
-    setEditingPercent(false);
-  }
-
-  const handleSavePercent = async () => {
-    if (!teacher) return;
-    try {
-      await saveTeacher({
-        id: teacher.id,
-        nome: teacher.nome,
-        tipoAula: teacher.tipoAula,
-        porcentagem: percentValue,
-      });
-      message.success('Porcentagem atualizada com sucesso!');
-      setEditingPercent(false);
-      refetchTeachers();
-    } catch (err) {
-      message.error('Erro ao salvar porcentagem: ' + (err.message || 'Erro desconhecido'));
-    }
-  };
+  // Porcentagem de repasse do professor (somente leitura nesta tela).
+  const percentValue = teacher?.porcentagem ?? null;
 
   const handleSaveSale = async () => {
     try {
@@ -721,43 +691,14 @@ function TeacherSales() {
                 >
                   Repasse (%)
                 </Text>
-                <Space align="center" size="small">
-                  <InputNumber
-                    value={percentValue}
-                    onChange={setPercentValue}
-                    disabled={!editingPercent || !teacher || loading}
-                    controls={false}
-                    min={0}
-                    max={100}
-                    precision={0}
-                    suffix="%"
-                    placeholder="—"
-                    style={{ width: 90 }}
-                    parser={(value) => {
-                      const digits = (value || '').replace(/\D/g, '');
-                      if (digits === '') return '';
-                      return Math.min(100, Number(digits));
-                    }}
-                  />
-                  {editingPercent ? (
-                    <Tooltip title="Salvar">
-                      <Button
-                        type="primary"
-                        icon={<SaveOutlined />}
-                        loading={saving}
-                        onClick={handleSavePercent}
-                      />
-                    </Tooltip>
-                  ) : (
-                    <Tooltip title="Editar porcentagem">
-                      <Button
-                        icon={<EditOutlined />}
-                        disabled={!teacher || loading}
-                        onClick={() => setEditingPercent(true)}
-                      />
-                    </Tooltip>
-                  )}
-                </Space>
+                <InputNumber
+                  value={percentValue}
+                  disabled
+                  controls={false}
+                  suffix="%"
+                  placeholder="—"
+                  style={{ width: 90 }}
+                />
               </div>
 
               <div>
