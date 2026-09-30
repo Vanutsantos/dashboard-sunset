@@ -14,10 +14,13 @@ import ClientDetail from '../pages/ClientDetail';
 import Teachers from '../pages/Teachers';
 import TeacherForm from '../pages/TeacherForm';
 import TeacherSales from '../pages/TeacherSales';
+import TeacherSalesV2 from '../pages/TeacherSalesV2';
 import Sales from '../pages/Sales';
 import Login from '../pages/Login';
 import ForgotPassword from '../pages/ForgotPassword';
 import NotFound from '../pages/NotFound';
+import TeachersV2 from '../pages/TeachersV2';
+import TeacherFormV2 from '../pages/TeacherFormV2';
 
 /**
  * Configuração central de rotas.
@@ -66,9 +69,13 @@ export const routes = [
                   { path: PATHS.clients, element: <Clients /> },
                   { path: PATHS.clientDetail, element: <ClientDetail /> },
                   { path: PATHS.teachers, element: <Teachers /> },
+                  { path: PATHS.teachersV2, element: <TeachersV2 /> },
                   { path: PATHS.teacherNew, element: <TeacherForm /> },
+                  { path: PATHS.teacherNewV2, element: <TeacherFormV2 /> },
                   { path: PATHS.teacherEdit, element: <TeacherForm /> },
+                  { path: PATHS.teacherEditV2, element: <TeacherFormV2 /> },
                   { path: PATHS.teacherSales, element: <TeacherSales /> },
+                  { path: PATHS.teacherSalesV2, element: <TeacherSalesV2 /> },
                   { path: PATHS.sales, element: <Sales /> },
                 ],
               },

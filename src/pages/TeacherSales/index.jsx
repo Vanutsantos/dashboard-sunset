@@ -758,7 +758,7 @@ function TeacherSales() {
         cancelText="Cancelar"
         onOk={handleSaveSale}
         confirmLoading={savingSale}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={saleForm} layout="vertical">
           <Form.Item
