@@ -559,8 +559,17 @@ function TeacherSales() {
     return clientGroups;
   }, [sales, teacherClients, selectedMonth, onlyWithSales, manualSales]);
 
-  const totalAlunos = groupedByClient.length;
-  const totalGeral = groupedByClient.reduce((sum, g) => sum + (g.totalValor || 0), 0);
+  // const totalAlunos = groupedByClient.length;
+  // const totalGeral2 = groupedByClient.reduce((sum, g) => sum + (g.totalValor || 0), 0);
+  const { totalGeral, totalAlunos } = useMemo(() => {
+    let total = 0;
+
+    groupedByClient.forEach((g) => {
+      total += g.totalValor || 0;
+    });
+
+    return { totalGeral: total, totalAlunos: groupedByClient.length };
+  }, [groupedByClient]);
   const totalRepasse = calcRepasse(totalGeral, percentValue);
   // Repasse líquido: repasse do mês menos o desconto informado (local).
   const totalRepasseLiquido = (totalRepasse ?? 0) - (desconto ?? 0);
